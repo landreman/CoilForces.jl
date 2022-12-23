@@ -19,7 +19,8 @@ end
 
 function γ(c::CurveXYZFourier, ϕ)
     γ = [0.0, 0.0, 0.0]
-    for m in 0 : (c.n - 1)
+    for j in 1:c.n
+        m = j - 1
         cosfac = cos(m * ϕ)
         sinfac = sin(m * ϕ)
 
@@ -34,7 +35,8 @@ end
 
 function dγdϕ(c::CurveXYZFourier, ϕ)
     dγdϕ = [0.0, 0.0, 0.0]
-    for m in 0 : (c.n - 1)
+    for j in 1:c.n
+        m = j - 1
         cosfac = -m * sin(m * ϕ)
         sinfac = m * cos(m * ϕ)
 
@@ -49,7 +51,8 @@ end
 
 function d2γdϕ2(c::CurveXYZFourier, ϕ)
     d2γdϕ2 = [0.0, 0.0, 0.0]
-    for m in 0 : (c.n - 1)
+    for j in 1:c.n
+        m = j - 1
         cosfac = -m * m * cos(m * ϕ)
         sinfac = -m * m * sin(m * ϕ)
 
@@ -63,9 +66,10 @@ function d2γdϕ2(c::CurveXYZFourier, ϕ)
 end
 
 
-function d3γdϕ(c::CurveXYZFourier, ϕ)
+function d3γdϕ3(c::CurveXYZFourier, ϕ)
     d3γdϕ3 = [0.0, 0.0, 0.0]
-    for m in 0 : (c.n - 1)
+    for j in 1:c.n
+        m = j - 1
         cosfac = m * m * m * sin(m * ϕ)
         sinfac = -m * m * m * cos(m * ϕ)
 

@@ -1,7 +1,7 @@
 module CoilForces
 
 export CurveCircle, CurveXYZFourier
-export curvature_torsion
+export γ, curvature_torsion
 
 include("utils.jl")
 include("Curve.jl")
