@@ -1,6 +1,1 @@
-using CoilForces
-using Test
-
-@testset "CoilForces.jl" begin
-    # Write your tests here.
-end
+include("test_curves.jl")
