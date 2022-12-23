@@ -8,6 +8,9 @@ struct CurveXYZFourier <: Curve
     n::Int
 end
 
+"""
+Constructor, which checks the lengths of the input vectors of Fourier amplitudes.
+"""
 function CurveXYZFourier(xc, xs, yc, ys, zc, zs) 
     @assert length(xs) == length(xc)
     @assert length(yc) == length(xc)

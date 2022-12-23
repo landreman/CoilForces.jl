@@ -3,6 +3,9 @@ uuid = "004486a9-d5b3-4afe-97ea-ebb701a64507"
 authors = ["Matt Landreman"]
 version = "0.1.0"
 
+[deps]
+Cubature = "667455a9-e2ce-5579-9412-b964f529a492"
+
 [compat]
 julia = "1"
 
