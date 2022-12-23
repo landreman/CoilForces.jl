@@ -30,7 +30,7 @@ function get_curve(config, coil_num)
         throw(ArgumentError("Unrecognized configuration."))
     end
 
-    if coil_num < 0 || 6 * coil_num > size(data, 2)
+    if coil_num < 1 || 6 * coil_num > size(data, 2)
         throw(ArgumentError("Invalid coil_num"))
     end
     data = data[:, 1 + (coil_num - 1) * 6: coil_num * 6]
