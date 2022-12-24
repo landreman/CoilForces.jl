@@ -1,5 +1,10 @@
 abstract type Curve end
 
+function tangent(c::Curve, ϕ)
+    r_prime = dγdϕ(c, ϕ)
+    return r_prime / norm(r_prime)    
+end
+
 function curvature_torsion(c::Curve, ϕ)
     r_prime = dγdϕ(c, ϕ)
     r_prime_prime = d2γdϕ2(c, ϕ)
