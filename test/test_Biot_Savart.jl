@@ -96,4 +96,44 @@ using Test
             @test maximum(abs.(B_adaptive ./ B_simsopt .- 1)) < 1e-12
         end
     end
+
+    @testset "Check that force diverges logarithmically if the evaluation point is on the coil" begin
+        # Major radius of coil [meters]
+        R0 = 2.3
+
+        # Total current [Amperes]
+        I = 3.1e6
+
+        curve = CurveCircle(R0)
+        coil = Coil(curve, I, 0.0)
+        r_eval = [R0, 0, 0]
+
+        # Generate numbers of quadrature points to try:
+        nns = 200
+        ns = [Int(round(10 ^ x)) for x in range(2.0, 4.0, length=nns)]
+
+        force_per_unit_length = zeros(nns)
+        for jn in 1:nns
+            B = B_filament_fixed(coil, r_eval, ns[jn], drop_first_point=true)
+            force_per_unit_length[jn] = I * B[3]
+        end
+
+        # Fit a line in a semilog plot:
+        c = (force_per_unit_length[end] - force_per_unit_length[1]) / (log(ns[end]) - log(ns[1]))
+        d = force_per_unit_length[end] - c * log(ns[end])
+        logarithmic_trend = c * log.(ns) .+ d   
+
+        difference = force_per_unit_length ./ logarithmic_trend .- 1
+        #@show difference
+        @test maximum(abs.(difference)) < 2e-6
+
+        if false
+            using Plots
+            scatter(ns, force_per_unit_length, xscale=:log10)
+            plot!(ns, logarithmic_trend)
+            xlabel!("number of quadrature points")
+            ylabel!("Force per unit length [N / m]")
+        end
+
+    end
 end

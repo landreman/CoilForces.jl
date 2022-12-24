@@ -30,10 +30,15 @@ end
 Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
 infinitesmally thin filament.
 """
-function B_filament_fixed(coil::Coil, r_eval, nϕ; regularization=0.0)
+function B_filament_fixed(coil::Coil, r_eval, nϕ; regularization=0.0, drop_first_point=false)
     dϕ = 2π / nϕ
     B = [0.0, 0.0, 0.0]
-    for j in 1:nϕ
+    if drop_first_point
+        first_point = 2
+    else
+        first_point = 1
+    end
+    for j in first_point:nϕ
         ϕ = (j - 1) * dϕ
         B += d_B_d_ϕ(coil, ϕ, r_eval, regularization)
     end
