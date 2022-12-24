@@ -2,7 +2,7 @@ using CoilForces
 using Test
 
 @testset "Test Biot-Savart law" begin
-    @testset "Test z axis of circular coil" begin
+    @testset "For B along the z axis for a circular coil, compare to analytic formula" begin
         # Major radius of coil [meters]
         R0 = 2.3
 
@@ -33,7 +33,7 @@ using Test
         
     end
 
-    @testset "Test B from circular coil at specified points" begin
+    @testset "For B from circular coil, compare to reference values from simsopt at specified points" begin
         # Compare a few points against the elliptic integral formula for an
         # infinitesmally thin coil, as implemented in simsopt.field.CircularCoil
         # 20221016_05_Benchmark_finite_thickness_circular_coil
@@ -68,7 +68,7 @@ using Test
         @test maximum(abs.(B_adaptive ./ B_simsopt .- 1)) < 1e-13
     end
 
-    @testset "Test B from HSX coils at specified points" begin
+    @testset "For B from HSX coils, compare to reference values from simsopt at specified points" begin
         # Compare to reference values from simsopt computed by
         # 20221224-01-HSX_BiotSavart_simsopt_julia_benchmark
 
@@ -97,7 +97,7 @@ using Test
         end
     end
 
-    @testset "Check that force diverges logarithmically if the evaluation point is on the coil" begin
+    @testset "For a circular coil, check that the IxB force diverges logarithmically if the evaluation point is on the coil" begin
         # Major radius of coil [meters]
         R0 = 2.3
 
