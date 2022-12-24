@@ -15,7 +15,7 @@ using Test
 end
 
 @testset "Test Frenet frame functions" begin
-    @testset "Test CurveCircle" begin
+    @testset "Test curvature and torsion for CurveCircle" begin
         R0 = 3.7
         c = CurveCircle(R0)
         ϕ = -0.3
@@ -25,7 +25,7 @@ end
         @test τ ≈ 0.0
     end
 
-    @testset "Test CurveXYZFourier" begin
+    @testset "For CurveXYZFourier, compare the curvature and torsion to reference values from simsopt" begin
         # Reference values for this test are from the simsopt calculation in 20221223-01-CurveXYZFourier_julia_simsopt_benchmark
         xc = [1.1, 0.2, -0.3]
         xs = [0.0, 3.1, -0.2]

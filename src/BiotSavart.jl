@@ -17,7 +17,7 @@ end
 
 Biot_savart_prefactor = μ0 / (4π)
 
-function d_B_d_ϕ(coil::Coil, ϕ, r_eval, regularization=0.0)
+function d_B_d_ϕ(coil::Coil, ϕ, r_eval; regularization=0.0)
     Δr = r_eval - γ(coil.curve, ϕ)
     temp = normsq(Δr) + regularization
     denominator = temp * sqrt(temp)
@@ -55,4 +55,12 @@ function B_filament_adaptive(coil::Coil, r_eval; regularization=0.0, reltol=1e-8
     end
     val, err = hquadrature(3, Biot_Savart_integrand!, 0, 2π, reltol=reltol, abstol=abstol)
     return val
+end
+
+function singularity_term(coil::Coil, ϕ)
+    r_prime = dγdϕ(coil.curve, ϕ)
+    dϕdℓ = 1 / norm(r_prime)
+    δ = coil.aminor * coil.aminor / sqrt(ℯ)
+    return (μ0 * coil.current / (4π) * dϕdℓ * dϕdℓ * dϕdℓ * (1 + log(δ * dϕdℓ * dϕdℓ / 8)) 
+        * cross(d2γdϕ2(coil.curve, ϕ), r_prime))
 end
