@@ -67,4 +67,33 @@ using Test
         @test maximum(abs.(B_fixed ./ B_adaptive .- 1)) < 1e-12
         @test maximum(abs.(B_adaptive ./ B_simsopt .- 1)) < 1e-13
     end
+
+    @testset "Test B from HSX coils at specified points" begin
+        # Compare to reference values from simsopt computed by
+        # 20221224-01-HSX_BiotSavart_simsopt_julia_benchmark
+
+        r_eval = [1.42, 0.1, 0.04]
+
+        current = -1.5e5
+
+        data = [[-0.072104818545038  0.271757521790311  0.16363853189801 ]
+            [-0.084720529664466  0.173067825353653  0.098354521790391]
+            [-0.040274051646095  0.070919120085303  0.035942181167016]
+            [-0.018659296051856  0.030788105746346  0.013455935703873]
+            [-0.010230770055778  0.014060109565271  0.005680799518643]
+            [-0.00611556754025   0.006710428046814  0.002653092435928]]
+
+        for jcoil in 1:6
+            curve = get_curve("hsx", jcoil)
+            coil = Coil(curve, current, 0.0)
+            B_fixed = B_filament_fixed(coil, r_eval, 1600)
+            B_adaptive = B_filament_adaptive(coil, r_eval)
+            B_simsopt = data[jcoil, :]
+            #println("point 1, adaptive:", B_adaptive)
+            #println("point 1, fixed vs adaptive:", maximum(abs.(B_fixed ./ B_adaptive .- 1)))
+            #println("point 1, simsopt vs adaptive:", maximum(abs.(B_simsopt ./ B_adaptive .- 1)))
+            @test maximum(abs.(B_fixed ./ B_adaptive .- 1)) < 1e-9
+            @test maximum(abs.(B_adaptive ./ B_simsopt .- 1)) < 1e-12
+        end
+    end
 end
