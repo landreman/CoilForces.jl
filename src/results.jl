@@ -40,7 +40,7 @@ function plot_integrand()
     a = 0.001
 
     # point at which to evaluate the force:
-    ϕ0 = -2.0
+    ϕ0 = 0.0
 
     coil = Coil(curve, current, a)
     δ = a * a / sqrt(ℯ)
@@ -48,18 +48,43 @@ function plot_integrand()
     nϕ = 1000
 
     #ϕp = (collect(1:nϕ) .- 1) * 2π / nϕ .- π
-    ϕp = collect(range(-2.01, -1.99, length=nϕ))
+    plot_width = 0.1
+    ϕp = collect(range(ϕ0 - plot_width, ϕ0 + plot_width, length=nϕ))
     #ϕp = collect(range(-π, π, length=nϕ))
     integrand = zeros(nϕ, 3)
     smoothed_integrand = zeros(nϕ, 3)
+    smoother_integrand = zeros(nϕ, 3)
+    smoothest_integrand = zeros(nϕ, 3)
     r_eval = γ(curve, ϕ0)
     r_prime = dγdϕ(curve, ϕ0)
     r_prime_prime = d2γdϕ2(curve, ϕ0)
+    r_prime_prime_prime = d3γdϕ3(curve, ϕ0)
+    dot_factor = dot(r_prime, r_prime_prime)
     dℓdϕ_squared = normsq(r_prime)
     for j in 1:nϕ
         integrand[j, :] = d_B_d_ϕ(coil, ϕp[j], r_eval, regularization=δ)
         smoothed_integrand[j, :] = (integrand[j, :] + μ0 * current / (4π) * 0.5 * cross(r_prime_prime, r_prime)
             * (2 - 2 * cos(ϕp[j] - ϕ0)) / (((2 - 2 * cos(ϕp[j] - ϕ0)) * dℓdϕ_squared + δ) ^ 1.5))
+
+        smoother_integrand[j, :] = (
+            integrand[j, :] + μ0 * current / (4π) * 
+            (0.5 * cross(r_prime_prime, r_prime) * (2 - 2 * cos(ϕp[j] - ϕ0))
+            + (1.0/3) * cross(r_prime_prime_prime, r_prime) * (2 - 2 * cos(ϕp[j] - ϕ0)) * sin(ϕp[j] - ϕ0)
+            ) 
+            / (((2 - 2 * cos(ϕp[j] - ϕ0)) * dℓdϕ_squared + δ) ^ 1.5))
+
+        #smoothed_integrand[j, :] = (integrand[j, :] + μ0 * current / (4π) * 0.5 * cross(r_prime_prime, r_prime)
+        #    * (2 - 2 * cos(ϕp[j] - ϕ0)) / (((2 - 2 * cos(ϕp[j] - ϕ0)) * dℓdϕ_squared 
+        #    + 0 * (2 - 2 * cos(ϕp[j] - ϕ0)) * sin(ϕp[j] - ϕ0) * dot_factor
+        #    + δ) ^ 1.5))
+
+        smoothest_integrand[j, :] = (integrand[j, :] + μ0 * current / (4π) * 
+            (0.5 * cross(r_prime_prime, r_prime) * (2 - 2 * cos(ϕp[j] - ϕ0))
+            + (1.0/3) * cross(r_prime_prime_prime, r_prime) * (2 - 2 * cos(ϕp[j] - ϕ0)) * sin(ϕp[j] - ϕ0)
+            )
+             / (((2 - 2 * cos(ϕp[j] - ϕ0)) * dℓdϕ_squared 
+            + 1 * (2 - 2 * cos(ϕp[j] - ϕ0)) * sin(ϕp[j] - ϕ0) * dot_factor
+            + δ) ^ 1.5))
     end
 
     using Plots
@@ -70,7 +95,9 @@ function plot_integrand()
     #plot!(ϕ, integrand[:, 3], label="z")
     for j in 1:3
         #plot!(ϕp, integrand[:, j], label=xyz[j:j])
-        plot!(ϕp, smoothed_integrand[:, j], label="smoothed, " * xyz[j:j])
+        #plot!(ϕp, smoothed_integrand[:, j], label="smoothed, " * xyz[j:j])
+        plot!(ϕp, smoother_integrand[:, j], label="smoother, " * xyz[j:j], ls=:dot)
+        plot!(ϕp, smoothest_integrand[:, j], label="smoothest, " * xyz[j:j], ls=:dash)
     end
     xlabel!("Coil parameter ϕ")
     title!("Regularized Biot-Savart integrand for HSX coil $(coil_num) at ϕ=$(ϕ0)")

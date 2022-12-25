@@ -40,7 +40,7 @@ function B_filament_fixed(coil::Coil, r_eval, nϕ; regularization=0.0, drop_firs
     end
     for j in first_point:nϕ
         ϕ = (j - 1) * dϕ
-        B += d_B_d_ϕ(coil, ϕ, r_eval, regularization)
+        B += d_B_d_ϕ(coil, ϕ, r_eval, regularization=regularization)
     end
     B *= dϕ
     return B
@@ -51,7 +51,7 @@ Adaptive quadrature.
 """
 function B_filament_adaptive(coil::Coil, r_eval; regularization=0.0, reltol=1e-8, abstol=1e-14)
     function Biot_Savart_integrand!(ϕ0, v) 
-        v[:] = d_B_d_ϕ(coil, ϕ0, r_eval, regularization)
+        v[:] = d_B_d_ϕ(coil, ϕ0, r_eval, regularization=regularization)
     end
     val, err = hquadrature(3, Biot_Savart_integrand!, 0, 2π, reltol=reltol, abstol=abstol)
     return val
