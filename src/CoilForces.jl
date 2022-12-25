@@ -1,5 +1,8 @@
 module CoilForces
 
+using Cubature
+using Plots
+
 export μ0, dot, cross
 export CurveCircle, CurveXYZFourier
 export γ, dγdϕ, d2γdϕ2, d3γdϕ3, tangent, curvature_torsion

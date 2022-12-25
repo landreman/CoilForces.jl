@@ -21,7 +21,6 @@ function plot_force_for_HSX()
         force_per_unit_length[j, :] = current * cross(tangent(curve, ϕ[j]), B)
     end
 
-    using Plots
     plot(ϕ, force_per_unit_length[:, 1], label="x")
     plot!(ϕ, force_per_unit_length[:, 2], label="y")
     plot!(ϕ, force_per_unit_length[:, 3], label="x")
@@ -87,7 +86,6 @@ function plot_integrand()
             + δ) ^ 1.5))
     end
 
-    using Plots
     plot()
     xyz = "xyz"
     #plot(ϕ, integrand[:, 1], label="x")
@@ -102,4 +100,37 @@ function plot_integrand()
     xlabel!("Coil parameter ϕ")
     title!("Regularized Biot-Savart integrand for HSX coil $(coil_num) at ϕ=$(ϕ0)")
 
+end
+
+function plot_force_convergence()
+    coil_num = 2
+
+    # point at which to evaluate the force:
+    ϕ0 = 0.0
+
+    curve = get_curve("hsx", coil_num)
+    # curve = CurveCircle(2.2)
+
+    current = -1.5e5
+
+    # minor radius of conductor:
+    a = 0.01
+
+    coil = Coil(curve, current, a)
+    δ = a * a / sqrt(ℯ)
+
+    # Generate numbers of quadrature points to try:
+    nns = 20
+    ns = [Int(round(10 ^ x)) for x in range(2.0, 4.0, length=nns)]
+
+    r_eval = γ(curve, ϕ0)
+    force_per_unit_length = zeros(nns)
+    for jn in 1:nns
+        B = B_filament_fixed(coil, r_eval, ns[jn], regularization=δ)
+        force_per_unit_length[jn] = current * B[3]
+    end
+
+    scatter(ns, force_per_unit_length, xscale=:log10)
+    xlabel!("number of quadrature points")
+    ylabel!("Force per unit length [N / m]")
 end
