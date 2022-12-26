@@ -120,17 +120,23 @@ function plot_force_convergence()
     δ = a * a / sqrt(ℯ)
 
     # Generate numbers of quadrature points to try:
-    nns = 20
-    ns = [Int(round(10 ^ x)) for x in range(2.0, 4.0, length=nns)]
+    nns = 40
+    ns = [Int(round(10 ^ x)) for x in range(1.0, 4.0, length=nns)]
 
     r_eval = γ(curve, ϕ0)
+    tangent0 = tangent(curve, ϕ0)
     force_per_unit_length = zeros(nns)
+    force_per_unit_length_singularity_subtraction = zeros(nns)
     for jn in 1:nns
         B = B_filament_fixed(coil, r_eval, ns[jn], regularization=δ)
-        force_per_unit_length[jn] = current * B[3]
-    end
+        force_per_unit_length[jn] = current * norm(cross(tangent0, B))
 
-    scatter(ns, force_per_unit_length, xscale=:log10)
+        B = B_singularity_subtraction_fixed(coil, ϕ0, ns[jn], δ)
+        force_per_unit_length_singularity_subtraction[jn] = current * norm(cross(tangent0, B))
+  end
+
+    scatter(ns, force_per_unit_length, xscale=:log10, label="original")
+    scatter!(ns, force_per_unit_length_singularity_subtraction, label="singularity subtraction")
     xlabel!("number of quadrature points")
     ylabel!("Force per unit length [N / m]")
 end
