@@ -114,7 +114,7 @@ function plot_force_convergence()
     current = -1.5e5
 
     # minor radius of conductor:
-    a = 0.01
+    a = 0.001
 
     coil = Coil(curve, current, a)
     δ = a * a / sqrt(ℯ)
