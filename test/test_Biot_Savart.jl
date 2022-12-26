@@ -167,7 +167,7 @@ using Test
                 B = B_filament_adaptive(coil, r_eval, regularization=δ)
                 force_per_unit_length_original_adaptive = current * norm(cross(tangent0, B))
         
-                B = B_singularity_subtraction_fixed(coil, ϕ0, nϕ, δ)
+                B = B_singularity_subtraction_fixed(coil, ϕ0, nϕ)
                 force_per_unit_length_singularity_subtraction = current * norm(cross(tangent0, B))
 
                 @test force_per_unit_length_original_fixed ≈ force_per_unit_length_original_adaptive

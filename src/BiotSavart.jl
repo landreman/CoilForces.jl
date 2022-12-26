@@ -41,7 +41,7 @@ end
 
 
 """
-    B_filament(coil::Coil, r_eval, nϕ, regularization=0.0)
+    B_filament_fixed(coil::Coil, r_eval, nϕ; regularization=0.0, drop_first_point=false)
 
 Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
 infinitesmally thin filament. Use quadrature on a fixed uniform grid with
@@ -86,7 +86,7 @@ function singularity_term(coil::Coil, ϕ)
 end
 
 """
-    B_singularity_subtraction_fixed(coil::Coil, ϕ0, nϕ, regularization)
+    B_singularity_subtraction_fixed(coil::Coil, ϕ0, nϕ)
 
 Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
 infinitesmally thin filament. Use quadrature on a fixed uniform grid with
@@ -94,7 +94,7 @@ specified number of points, nϕ.
 
 ϕ0: curve parameter at which to evaluate B.
 """
-function B_singularity_subtraction_fixed(coil::Coil, ϕ0, nϕ, regularization)
+function B_singularity_subtraction_fixed(coil::Coil, ϕ0, nϕ)
     dϕ = 2π / nϕ
     B = [0.0, 0.0, 0.0]
     r_eval = γ(coil.curve, ϕ0)
@@ -102,9 +102,10 @@ function B_singularity_subtraction_fixed(coil::Coil, ϕ0, nϕ, regularization)
     r_prime_prime = d2γdϕ2(coil.curve, ϕ0)
     dℓdϕ_squared = normsq(r_prime)
     r_prime_prime_cross_r_prime = cross(r_prime_prime, r_prime)
+    δ = coil.aminor * coil.aminor / sqrt(ℯ)
     for j in 1:nϕ
         ϕ = (j - 1) * dϕ
-        B += d_B_d_ϕ_singularity_subtracted(coil, ϕ, r_eval, regularization, ϕ0, r_prime_prime_cross_r_prime, dℓdϕ_squared)
+        B += d_B_d_ϕ_singularity_subtracted(coil, ϕ, r_eval, δ, ϕ0, r_prime_prime_cross_r_prime, dℓdϕ_squared)
     end
     B = B * dϕ + singularity_term(coil, ϕ0)
     return B
