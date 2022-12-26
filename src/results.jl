@@ -21,7 +21,6 @@ function plot_force_for_HSX()
         force_per_unit_length[j, :] = current * cross(tangent(curve, ϕ[j]), B)
     end
 
-    using Plots
     plot(ϕ, force_per_unit_length[:, 1], label="x")
     plot!(ϕ, force_per_unit_length[:, 2], label="y")
     plot!(ϕ, force_per_unit_length[:, 3], label="x")
@@ -40,7 +39,7 @@ function plot_integrand()
     a = 0.001
 
     # point at which to evaluate the force:
-    ϕ0 = -2.0
+    ϕ0 = 0.0
 
     coil = Coil(curve, current, a)
     δ = a * a / sqrt(ℯ)
@@ -48,21 +47,45 @@ function plot_integrand()
     nϕ = 1000
 
     #ϕp = (collect(1:nϕ) .- 1) * 2π / nϕ .- π
-    ϕp = collect(range(-2.01, -1.99, length=nϕ))
+    plot_width = 0.1
+    ϕp = collect(range(ϕ0 - plot_width, ϕ0 + plot_width, length=nϕ))
     #ϕp = collect(range(-π, π, length=nϕ))
     integrand = zeros(nϕ, 3)
     smoothed_integrand = zeros(nϕ, 3)
+    smoother_integrand = zeros(nϕ, 3)
+    smoothest_integrand = zeros(nϕ, 3)
     r_eval = γ(curve, ϕ0)
     r_prime = dγdϕ(curve, ϕ0)
     r_prime_prime = d2γdϕ2(curve, ϕ0)
+    r_prime_prime_prime = d3γdϕ3(curve, ϕ0)
+    dot_factor = dot(r_prime, r_prime_prime)
     dℓdϕ_squared = normsq(r_prime)
     for j in 1:nϕ
         integrand[j, :] = d_B_d_ϕ(coil, ϕp[j], r_eval, regularization=δ)
         smoothed_integrand[j, :] = (integrand[j, :] + μ0 * current / (4π) * 0.5 * cross(r_prime_prime, r_prime)
             * (2 - 2 * cos(ϕp[j] - ϕ0)) / (((2 - 2 * cos(ϕp[j] - ϕ0)) * dℓdϕ_squared + δ) ^ 1.5))
+
+        smoother_integrand[j, :] = (
+            integrand[j, :] + μ0 * current / (4π) * 
+            (0.5 * cross(r_prime_prime, r_prime) * (2 - 2 * cos(ϕp[j] - ϕ0))
+            + (1.0/3) * cross(r_prime_prime_prime, r_prime) * (2 - 2 * cos(ϕp[j] - ϕ0)) * sin(ϕp[j] - ϕ0)
+            ) 
+            / (((2 - 2 * cos(ϕp[j] - ϕ0)) * dℓdϕ_squared + δ) ^ 1.5))
+
+        #smoothed_integrand[j, :] = (integrand[j, :] + μ0 * current / (4π) * 0.5 * cross(r_prime_prime, r_prime)
+        #    * (2 - 2 * cos(ϕp[j] - ϕ0)) / (((2 - 2 * cos(ϕp[j] - ϕ0)) * dℓdϕ_squared 
+        #    + 0 * (2 - 2 * cos(ϕp[j] - ϕ0)) * sin(ϕp[j] - ϕ0) * dot_factor
+        #    + δ) ^ 1.5))
+
+        smoothest_integrand[j, :] = (integrand[j, :] + μ0 * current / (4π) * 
+            (0.5 * cross(r_prime_prime, r_prime) * (2 - 2 * cos(ϕp[j] - ϕ0))
+            + (1.0/3) * cross(r_prime_prime_prime, r_prime) * (2 - 2 * cos(ϕp[j] - ϕ0)) * sin(ϕp[j] - ϕ0)
+            )
+             / (((2 - 2 * cos(ϕp[j] - ϕ0)) * dℓdϕ_squared 
+            + 1 * (2 - 2 * cos(ϕp[j] - ϕ0)) * sin(ϕp[j] - ϕ0) * dot_factor
+            + δ) ^ 1.5))
     end
 
-    using Plots
     plot()
     xyz = "xyz"
     #plot(ϕ, integrand[:, 1], label="x")
@@ -70,9 +93,50 @@ function plot_integrand()
     #plot!(ϕ, integrand[:, 3], label="z")
     for j in 1:3
         #plot!(ϕp, integrand[:, j], label=xyz[j:j])
-        plot!(ϕp, smoothed_integrand[:, j], label="smoothed, " * xyz[j:j])
+        #plot!(ϕp, smoothed_integrand[:, j], label="smoothed, " * xyz[j:j])
+        plot!(ϕp, smoother_integrand[:, j], label="smoother, " * xyz[j:j], ls=:dot)
+        plot!(ϕp, smoothest_integrand[:, j], label="smoothest, " * xyz[j:j], ls=:dash)
     end
     xlabel!("Coil parameter ϕ")
     title!("Regularized Biot-Savart integrand for HSX coil $(coil_num) at ϕ=$(ϕ0)")
 
+end
+
+function plot_force_convergence()
+    coil_num = 2
+
+    # point at which to evaluate the force:
+    ϕ0 = 0.0
+
+    curve = get_curve("hsx", coil_num)
+    # curve = CurveCircle(2.2)
+
+    current = -1.5e5
+
+    # minor radius of conductor:
+    a = 0.001
+
+    coil = Coil(curve, current, a)
+    δ = a * a / sqrt(ℯ)
+
+    # Generate numbers of quadrature points to try:
+    nns = 40
+    ns = [Int(round(10 ^ x)) for x in range(1.0, 4.0, length=nns)]
+
+    r_eval = γ(curve, ϕ0)
+    tangent0 = tangent(curve, ϕ0)
+    force_per_unit_length = zeros(nns)
+    force_per_unit_length_singularity_subtraction = zeros(nns)
+    for jn in 1:nns
+        B = B_filament_fixed(coil, r_eval, ns[jn], regularization=δ)
+        force_per_unit_length[jn] = current * norm(cross(tangent0, B))
+
+        B = B_singularity_subtraction_fixed(coil, ϕ0, ns[jn], δ)
+        force_per_unit_length_singularity_subtraction[jn] = current * norm(cross(tangent0, B))
+  end
+
+    scatter(ns, force_per_unit_length, xscale=:log10, label="original")
+    scatter!(ns, force_per_unit_length_singularity_subtraction, label="singularity subtraction")
+    xlabel!("number of quadrature points")
+    ylabel!("Force per unit length [N / m]")
 end

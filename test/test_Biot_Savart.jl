@@ -137,4 +137,42 @@ using Test
 
     end
 
+    @testset "Force from the singularity-subtraction method should match the force from direct quadrature of regularized Biot-Savart" begin
+        current = -1.5e5
+    
+        # minor radius of conductor:
+        a = 0.001
+
+        δ = a * a / sqrt(ℯ)
+
+        # Number of points along each coil at which to evaluate the force:
+        nϕ0 = 5
+
+        # Number of points to use for quadrature:
+        nϕ = 10000
+
+        for coil_num in 1:6
+            curve = get_curve("hsx", coil_num)
+            coil = Coil(curve, current, a)
+
+            # ϕ0 = point at which to evaluate the force:
+            for ϕ0 in ((1:nϕ0) .- 1) * 2π / nϕ0
+    
+                r_eval = γ(curve, ϕ0)
+                tangent0 = tangent(curve, ϕ0)
+
+                B = B_filament_fixed(coil, r_eval, nϕ, regularization=δ)
+                force_per_unit_length_original_fixed = current * norm(cross(tangent0, B))
+        
+                B = B_filament_adaptive(coil, r_eval, regularization=δ)
+                force_per_unit_length_original_adaptive = current * norm(cross(tangent0, B))
+        
+                B = B_singularity_subtraction_fixed(coil, ϕ0, nϕ)
+                force_per_unit_length_singularity_subtraction = current * norm(cross(tangent0, B))
+
+                @test force_per_unit_length_original_fixed ≈ force_per_unit_length_original_adaptive
+                @test force_per_unit_length_original_adaptive ≈ force_per_unit_length_singularity_subtraction rtol=1e-5
+            end
+        end
+    end
 end
