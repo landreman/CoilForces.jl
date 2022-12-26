@@ -11,6 +11,8 @@ PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 
 [compat]
 PyPlot = "2"
+PyCall = "1"
+Cubature = "1"
 julia = "1"
 
 [extras]
