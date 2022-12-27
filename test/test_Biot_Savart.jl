@@ -2,7 +2,7 @@ using CoilForces
 using Test
 
 @testset "Test Biot-Savart law" begin
-    @testset "For B along the z axis for a circular coil, compare to analytic formula" begin
+    @testset "For B along the z axis for a circular coil, compare to analytic formula. Filament coil." begin
         # Major radius of coil [meters]
         R0 = 2.3
 
@@ -30,6 +30,35 @@ using Test
         @test maximum(abs.(B[1, :])) < 1e-12
         @test maximum(abs.(B[2, :])) < 1e-12
         @test maximum(abs.(B[3, :] ./ Bz_analytic .- 1)) < 1e-12
+        
+    end
+
+    @testset "For B along the z axis for a circular coil, compare to analytic formula. Finite thickness coil." begin
+        # Major radius of coil [meters]
+        R0 = 2.3
+
+        # Total current [Amperes]
+        I = 3.1e6
+
+        # Coil minor radius
+        a = 0.001
+
+        curve = CurveCircle(R0)
+        coil = Coil(curve, I, a)
+
+        nz = 10
+        z = collect(range(-5, 5, length=nz))
+        Bz_analytic = @. 0.5 * μ0 * I * R0^2 / ((R0^2 + z^2) ^ 1.5)
+        B_numerical = zeros(3, nz)
+        nϕ = 100
+        for j in 1:nz
+            r_eval = [0, 0, z[j]]
+            B_numerical[:, j] = B_finite_thickness(coil, r_eval, reltol=1e-11, abstol=1e-13)
+        end
+        # Bx and By should be 0:
+        @test maximum(abs.(B_numerical[1, :])) < 1e-10
+        @test maximum(abs.(B_numerical[2, :])) < 1e-10
+        @test maximum(abs.(B_numerical[3, :] ./ Bz_analytic .- 1)) < 1e-7
         
     end
 

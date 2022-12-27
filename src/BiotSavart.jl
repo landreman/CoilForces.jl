@@ -110,3 +110,49 @@ function B_singularity_subtraction_fixed(coil::Coil, ϕ0, nϕ)
     B = B * dϕ + singularity_term(coil, ϕ0)
     return B
 end
+
+"""
+For a finite-thickness coil of arbitrary smooth shape, 
+compute the integrand for evaluating B.
+
+See 20221016-01 Numerical evaluation of B for finite thickness coil.lyx
+"""
+function B_finite_thickness_integrand!(coil::Coil, ρ, θ, ϕ, r_eval, dB)
+    dℓdϕ, κ, τ, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
+    cosθ = cos(θ)
+    r = γ(coil.curve, ϕ) + ρ * cosθ * normal + ρ * sin(θ) * binormal
+    Δr = r_eval - r
+    temp = 1 / normsq(Δr)
+    #denominator = temp * sqrt(temp)
+    sqrtg = (1 - κ * ρ * cosθ) * ρ * dℓdϕ
+    # prefactor = coil.current / (π * coil.aminor * coil.aminor) * Biot_savart_prefactor
+    dB[:] = (sqrtg * temp * sqrt(temp)) * cross(tangent, Δr)
+end
+
+"""
+Compute the magnetic field vector at a point with specified Cartesian coordinates.
+"""
+function B_finite_thickness(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5)
+    prefactor = coil.current / (π * coil.aminor * coil.aminor) * Biot_savart_prefactor
+
+    function Biot_savart_cubature_func!(xp, v)
+        #v[:] = Biot_savart_integrand(x, y, z, xp[1], xp[2], xp[3])
+        B_finite_thickness_integrand!(coil, xp[1], xp[2], xp[3], r_eval, v)
+    end
+
+    Biot_savart_xmin = [0, 0, 0]
+    Biot_savart_xmax = [coil.aminor, 2π, 2π]
+    #Biot_savart_xmin = [0, -π, -π]
+    #Biot_savart_xmax = [a, π, π]
+    #Biot_savart_xmin = [0, 0.1 - π, 0.1 - π]
+    #Biot_savart_xmax = [a, 0.1 + π, 0.1 + π]
+
+    val, err = hcubature(
+        3,
+        Biot_savart_cubature_func!, 
+        Biot_savart_xmin,
+        Biot_savart_xmax,
+        abstol=abstol,
+        reltol=reltol)
+    return prefactor * val
+end
