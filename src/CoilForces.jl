@@ -12,6 +12,7 @@ export d_B_d_ϕ_singularity_subtracted, B_singularity_subtraction_fixed
 export B_finite_thickness
 export get_curve
 export plot_force_for_HSX, plot_integrand
+export force_finite_thickness
 
 include("utils.jl")
 include("Curve.jl")
@@ -20,5 +21,6 @@ include("CurveXYZFourier.jl")
 include("configs.jl")
 include("BiotSavart.jl")
 include("results.jl")
+include("force.jl")
 
 end

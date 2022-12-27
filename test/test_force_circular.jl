@@ -47,4 +47,30 @@ using Test
         force_from_quadrature = I * B_adaptive[3]
         @test force_from_quadrature ≈ analytic_force_per_unit_length(coil) rtol=1e-3
     end
+
+    @testset "Test that force calculation for a finite thickness coil matches the analytic result" begin
+        # Major radius of coil [meters]
+        R0 = 2.3
+
+        # Minor radius of coil [meters]
+        a = 0.1
+
+        # Total current [Amperes]
+        I = 3.1e6
+
+        curve = CurveCircle(R0)
+        coil = Coil(curve, I, a)
+
+        reltol = 1e-2
+        abstol = 1e-4
+
+        ϕ = 0
+        @time force = force_finite_thickness(coil, ϕ, reltol=reltol, abstol=abstol)
+        @show force
+        #println("B from fixed-grid quadrature:", B_fixed)
+        #println("B from adaptive quadrature:", B_adaptive)
+        @test abs(force[2]) < 1e-13
+        @test abs(force[3]) < 1e-8
+        @test force[1] ≈ analytic_force_per_unit_length(coil) rtol=1e-4
+    end
 end

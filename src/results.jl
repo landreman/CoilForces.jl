@@ -140,3 +140,46 @@ function plot_force_convergence()
     xlabel!("number of quadrature points")
     ylabel!("Force per unit length [N / m]")
 end
+
+function plot_B_near_thick_circular_coil()
+    # Plot |B| inside and outside the coil.
+    # This part takes tens of seconds to run.
+
+    # Major radius of coil [meters]
+    R0 = 2.3
+
+    # Minor radius of coil [meters]
+    aminor = 0.02
+
+    # Total current [Amperes]
+    I = 3.1e6
+
+    reltol = 1e-3
+    abstol = 1e-5
+    nx = 20
+    nz = 19
+
+    curve = CurveCircle(R0)
+    coil = Coil(curve, I, aminor)
+
+    xplot = collect(range(R0 - 2 * aminor, R0 + 2 * aminor, length=nx))
+    zplot = collect(range(- 1.5 * aminor, 1.5 * aminor, length=nz))
+    modB = zeros(nz, nx)
+
+    for jx in 1:nx
+        for jz in 1:nz
+            r_eval = [xplot[jx], 0, zplot[jz]]
+            B = B_finite_thickness(coil, r_eval, reltol=reltol, abstol=abstol)
+            modB[jz, jx] = sqrt(B[1]^2 + B[2]^2 + B[3]^2)
+        end
+    end
+
+    contour(xplot, zplot, modB)
+    title!("|B| [Tesla]")
+    xlabel!("x [meters]")
+    ylabel!("z [meters]")
+    nθ = 150
+    θplot = collect(range(0, 2π, length=nθ))
+    plot!(R0 .+ aminor * cos.(θplot), aminor * sin.(θplot), linewidth=3, color=:black, label="coil edge")
+
+end
