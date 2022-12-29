@@ -2,6 +2,7 @@ module CoilForces
 
 using Cubature
 using Plots
+using Printf
 
 export μ0, dot, cross, norm, normsq
 export CurveCircle, CurveXYZFourier

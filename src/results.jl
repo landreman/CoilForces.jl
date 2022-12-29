@@ -102,7 +102,7 @@ function plot_integrand()
 
 end
 
-function plot_force_convergence()
+function plot_force_convergence_single()
     coil_num = 2
 
     # point at which to evaluate the force:
@@ -139,6 +139,63 @@ function plot_force_convergence()
     scatter!(ns, force_per_unit_length_singularity_subtraction, label="singularity subtraction")
     xlabel!("number of quadrature points")
     ylabel!("Force per unit length [N / m]")
+end
+
+function plot_force_convergence_grid()
+    # points at which to evaluate the force:
+    nϕ = 5
+    ϕs = [(j - 1) * 2π / nϕ for j in 1:nϕ]
+
+    current = -1.5e5
+
+    # minor radius of conductor:
+    a = 0.001
+    δ = a * a / sqrt(ℯ)
+
+    # Generate numbers of quadrature points to try:
+    nns = 40
+    ns = [Int(round(10 ^ x)) for x in range(1.0, 4.0, length=nns)]
+
+    num_coils = 6
+    layout = (length(ϕs), num_coils)
+    plots = Array{Any, 2}(undef, num_coils, length(ϕs))
+    style = (
+        markershape = :circle,
+        markersize = 2,
+        markerstrokewidth = 0,
+    )
+    scalefontsizes()
+    scalefontsizes(0.5)
+    for coil_num in 1:num_coils
+        curve = get_curve("hsx", coil_num)    
+        coil = Coil(curve, current, a)
+    
+        for jϕ in 1:length(ϕs)
+            ϕ0 = ϕs[jϕ]
+
+            r_eval = γ(curve, ϕ0)
+            tangent0 = tangent(curve, ϕ0)
+            force_per_unit_length = zeros(nns)
+            force_per_unit_length_singularity_subtraction = zeros(nns)
+            for jn in 1:nns
+                B = B_filament_fixed(coil, r_eval, ns[jn], regularization=δ)
+                force_per_unit_length[jn] = current * norm(cross(tangent0, B))
+
+                B = B_singularity_subtraction_fixed(coil, ϕ0, ns[jn])
+                force_per_unit_length_singularity_subtraction[jn] = current * norm(cross(tangent0, B))
+            end
+
+            plots[coil_num, jϕ] = plot(ns, force_per_unit_length, xscale=:log10, label="original"; style...)
+            plot!(ns, force_per_unit_length_singularity_subtraction, label="singularity subtraction"; style...)
+            xlabel!("number of quadrature points")
+            ylabel!("Force per unit length [N / m]")
+            title = @sprintf "HSX coil %d, ϕ=%.2f" coil_num ϕ0
+            title!(title)
+            xticks!([1e1, 1e2, 1e3, 1e4])
+        end
+    end
+    plot(plots..., layout=layout, dpi=100, size=(1100, 850))
+    savefig("plot_force_convergence_grid.pdf")
 end
 
 function plot_B_near_thick_circular_coil()
