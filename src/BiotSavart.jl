@@ -124,13 +124,12 @@ compute the integrand for evaluating B.
 See 20221016-01 Numerical evaluation of B for finite thickness coil.lyx
 """
 function B_finite_thickness_integrand!(coil::Coil, ρ, θ, ϕ, r_eval, dB)
-    dℓdϕ, κ, τ, γ0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
+    dℓdϕ, κ, τ, r, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
     cosθ = cos(θ)
-    r = γ0 + ρ * cosθ * normal + ρ * sin(θ) * binormal
-    Δr = r_eval - r
-    temp = 1 / normsq(Δr)
+    @. r += (ρ * cosθ) * normal + (ρ * sin(θ)) * binormal - r_eval
+    temp = 1 / normsq(r)
     sqrtg = (1 - κ * ρ * cosθ) * ρ * dℓdϕ
-    dB[:] .= (sqrtg * temp * sqrt(temp)) * cross(tangent, Δr)
+    dB[:] .= (sqrtg * temp * sqrt(temp)) * cross(r, tangent)
 end
 
 """

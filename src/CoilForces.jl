@@ -1,5 +1,6 @@
 module CoilForces
 
+import LinearAlgebra
 using Cubature
 using Plots
 using Printf

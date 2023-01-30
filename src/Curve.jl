@@ -12,9 +12,9 @@ function Frenet_frame(c::Curve, ϕ)
     # https://en.wikipedia.org/wiki/Frenet%E2%80%93Serret_formulas#Other_expressions_of_the_frame
     
     data = γ_and_3_derivatives(c, ϕ)
-    r_prime = data[:, 2]
-    r_prime_prime = data[:, 3]
-    r_prime_prime_prime = data[:, 4]
+    r_prime = @view data[:, 2]
+    r_prime_prime = @view data[:, 3]
+    r_prime_prime_prime = @view data[:, 4]
 
     norm_r_prime = norm(r_prime)
     differential_arclength = norm_r_prime
