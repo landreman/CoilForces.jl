@@ -12,6 +12,34 @@ using Test
         c = CurveXYZFourier(xc, xs, yc, ys, zc, zs)
         @test c.n == 2
     end
+
+    @testset "Ensure γ_and_3_derivatives, γ_and_2_derivatives, γ_and_derivative, and γ are consistent" begin
+        function subtest(curve)
+            for ϕ in [j * 0.1 for j in 1:20]
+                data4 = γ_and_3_derivatives(curve, ϕ)
+                data3 = γ_and_2_derivatives(curve, ϕ)
+                data2 = γ_and_derivative(curve, ϕ)
+                data1 = γ(curve, ϕ)
+
+                @test data1 ≈ data2[:, 1]
+                @test data1 ≈ data3[:, 1]
+                @test data1 ≈ data4[:, 1]
+
+                @test data2 ≈ data3[:, 1:2]
+                @test data2 ≈ data4[:, 1:2]
+
+                @test data3 ≈ data4[:, 1:3]
+            end
+        end
+
+        for j in 1:6
+            curve = get_curve("hsx", j)
+            subtest(curve)
+        end
+        R0 = 3.7
+        curve = CurveCircle(R0)
+        subtest(curve)
+    end
 end
 
 @testset "Test Frenet frame functions" begin
@@ -19,7 +47,7 @@ end
         R0 = 3.7
         c = CurveCircle(R0)
         for ϕ in range(-3π, 3π, length=50)
-            dℓdϕ, κ, τ, tangent, normal, binormal = Frenet_frame(c, ϕ)
+            dℓdϕ, κ, τ, γ0, tangent, normal, binormal = Frenet_frame(c, ϕ)
             @test dℓdϕ ≈ R0
             @test κ ≈ 1 / R0
             @test τ ≈ 0.0
@@ -32,12 +60,12 @@ end
     @testset "For CurveXYZFourier, compare the curvature and torsion to reference values from simsopt" begin
         # Reference values for this test are from the simsopt calculation in 
         # 20221223-01-CurveXYZFourier_julia_simsopt_benchmark
-        xc = [1.1, 0.2, -0.3]
-        xs = [0.0, 3.1, -0.2]
-        yc = [0.9, -0.1, -0.1]
-        ys = [0.0, -0.3, 0.3]
-        zc = [-0.2, 1.4, 0.2]
-        zs = [-1.3, 0.2, 0.1]
+        xc = [1.1, 0.2, -0.3, 0]
+        xs = [0.0, 3.1, -0.2, 0]
+        yc = [0.9, -0.1, -0.1, 0]
+        ys = [0.0, -0.3, 0.3, 0]
+        zc = [-0.2, 1.4, 0.2, 0]
+        zs = [-1.3, 0.2, 0.1, 0]
         c = CurveXYZFourier(xc, xs, yc, ys, zc, zs)
 
         nϕ = 10
@@ -94,7 +122,7 @@ end
         for j in 1:nϕ
             position = γ(c, ϕ[j])
             @test position ≈ γ_python[j, :]
-            dℓdϕ, κ, τ, tangent, normal, binormal = Frenet_frame(c, ϕ[j])
+            dℓdϕ, κ, τ, γ0, tangent, normal, binormal = Frenet_frame(c, ϕ[j])
             @test κ ≈ κ_python[j]
             @test τ ≈ τ_python[j]
             @test tangent ≈ tangent_python[j, :]

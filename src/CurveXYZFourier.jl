@@ -1,10 +1,6 @@
 struct CurveXYZFourier <: Curve
-    xc::Vector{Float64}
-    xs::Vector{Float64}
-    yc::Vector{Float64}
-    ys::Vector{Float64}
-    zc::Vector{Float64}
-    zs::Vector{Float64}
+    cos_coeffs::Matrix{Float64}
+    sin_coeffs::Matrix{Float64}
     n::Int
 end
 
@@ -17,71 +13,111 @@ function CurveXYZFourier(xc, xs, yc, ys, zc, zs)
     @assert length(ys) == length(xc)
     @assert length(zc) == length(xc)
     @assert length(zs) == length(xc)
-    return CurveXYZFourier(xc, xs, yc, ys, zc, zs, length(xc))
+    cos_coeffs = [
+        xc';
+        yc';
+        zc';
+    ]
+    sin_coeffs = [
+        xs';
+        ys';
+        zs';
+    ]
+    return CurveXYZFourier(cos_coeffs, sin_coeffs, length(xc))
 end
 
 function γ(c::CurveXYZFourier, ϕ)
-    γ = [0.0, 0.0, 0.0]
-    for j in 1:c.n
-        m = j - 1
-        cosfac = cos(m * ϕ)
-        sinfac = sin(m * ϕ)
-
-        γ += [
-            c.xc[j] * cosfac + c.xs[j] * sinfac,
-            c.yc[j] * cosfac + c.ys[j] * sinfac,
-            c.zc[j] * cosfac + c.zs[j] * sinfac
-        ]
-    end
-    return γ
+    cos_m_factors = [cos(m * ϕ) for m in 0:(c.n - 1)]
+    sin_m_factors = [sin(m * ϕ) for m in 0:(c.n - 1)]
+    return c.cos_coeffs * cos_m_factors + c.sin_coeffs * sin_m_factors
 end
 
-function dγdϕ(c::CurveXYZFourier, ϕ)
-    dγdϕ = [0.0, 0.0, 0.0]
+"""
+    γ_and_derivative(c::CurveXYZFourier, ϕ)
+
+Returns a 3 × 4 matrix containing
+[γ, dγ/dϕ, d^2γ/dϕ^2, d^3γ/dϕ^3]
+"""
+function γ_and_derivative(c::CurveXYZFourier, ϕ)
+
+    cos_m_factors = ones(c.n, 2)
+    sin_m_factors = ones(c.n, 2)
+
     for j in 1:c.n
         m = j - 1
-        cosfac = -m * sin(m * ϕ)
-        sinfac = m * cos(m * ϕ)
+        cos_mϕ = cos(m * ϕ)
+        sin_mϕ = sin(m * ϕ)
 
-        dγdϕ += [
-            c.xc[j] * cosfac + c.xs[j] * sinfac,
-            c.yc[j] * cosfac + c.ys[j] * sinfac,
-            c.zc[j] * cosfac + c.zs[j] * sinfac
-        ]
+        cos_m_factors[j, 1] = cos_mϕ
+        cos_m_factors[j, 2] = -m * sin_mϕ
+
+        sin_m_factors[j, 1] = sin_mϕ
+        sin_m_factors[j, 2] = m * cos_mϕ
     end
-    return dγdϕ
+
+    data = c.cos_coeffs * cos_m_factors + c.sin_coeffs * sin_m_factors
+    
+    return data
 end
 
-function d2γdϕ2(c::CurveXYZFourier, ϕ)
-    d2γdϕ2 = [0.0, 0.0, 0.0]
+"""
+    γ_and_2_derivatives(c::CurveXYZFourier, ϕ)
+
+Returns a 3 × 4 matrix containing
+[γ, dγ/dϕ, d^2γ/dϕ^2, d^3γ/dϕ^3]
+"""
+function γ_and_2_derivatives(c::CurveXYZFourier, ϕ)
+
+    cos_m_factors = ones(c.n, 3)
+    sin_m_factors = ones(c.n, 3)
+
     for j in 1:c.n
         m = j - 1
-        cosfac = -m * m * cos(m * ϕ)
-        sinfac = -m * m * sin(m * ϕ)
+        cos_mϕ = cos(m * ϕ)
+        sin_mϕ = sin(m * ϕ)
 
-        d2γdϕ2 += [
-            c.xc[j] * cosfac + c.xs[j] * sinfac,
-            c.yc[j] * cosfac + c.ys[j] * sinfac,
-            c.zc[j] * cosfac + c.zs[j] * sinfac
-        ]
+        cos_m_factors[j, 1] = cos_mϕ
+        cos_m_factors[j, 2] = -m * sin_mϕ
+        cos_m_factors[j, 3] = -m * m * cos_mϕ
+
+        sin_m_factors[j, 1] = sin_mϕ
+        sin_m_factors[j, 2] = m * cos_mϕ
+        sin_m_factors[j, 3] = -m * m * sin_mϕ
     end
-    return d2γdϕ2
+
+    data = c.cos_coeffs * cos_m_factors + c.sin_coeffs * sin_m_factors
+    
+    return data
 end
 
+"""
+    γ_and_3_derivatives(c::CurveXYZFourier, ϕ)
 
-function d3γdϕ3(c::CurveXYZFourier, ϕ)
-    d3γdϕ3 = [0.0, 0.0, 0.0]
+Returns a 3 × 4 matrix containing
+[γ, dγ/dϕ, d^2γ/dϕ^2, d^3γ/dϕ^3]
+"""
+function γ_and_3_derivatives(c::CurveXYZFourier, ϕ)
+
+    cos_m_factors = ones(c.n, 4)
+    sin_m_factors = ones(c.n, 4)
+
     for j in 1:c.n
         m = j - 1
-        cosfac = m * m * m * sin(m * ϕ)
-        sinfac = -m * m * m * cos(m * ϕ)
+        cos_mϕ = cos(m * ϕ)
+        sin_mϕ = sin(m * ϕ)
 
-        d3γdϕ3 += [
-            c.xc[j] * cosfac + c.xs[j] * sinfac,
-            c.yc[j] * cosfac + c.ys[j] * sinfac,
-            c.zc[j] * cosfac + c.zs[j] * sinfac
-        ]
+        cos_m_factors[j, 1] = cos_mϕ
+        cos_m_factors[j, 2] = -m * sin_mϕ
+        cos_m_factors[j, 3] = -m * m * cos_mϕ
+        cos_m_factors[j, 4] = m * m * m * sin_mϕ
+
+        sin_m_factors[j, 1] = sin_mϕ
+        sin_m_factors[j, 2] = m * cos_mϕ
+        sin_m_factors[j, 3] = -m * m * sin_mϕ
+        sin_m_factors[j, 4] = -m * m * m * cos_mϕ
     end
-    return d3γdϕ3
+
+    data = c.cos_coeffs * cos_m_factors + c.sin_coeffs * sin_m_factors
+    
+    return data
 end
-3

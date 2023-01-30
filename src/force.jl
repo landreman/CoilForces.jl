@@ -5,7 +5,7 @@ Compute the force-per-unit-length for a finite-thickness coil.
 """
 function force_finite_thickness(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
     r0 = γ(coil.curve, ϕ)
-    dℓdϕ, κ, τ, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
+    dℓdϕ, κ, τ, γ0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
 
     prefactor = coil.current / (π * coil.aminor * coil.aminor)
 

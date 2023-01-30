@@ -45,7 +45,7 @@ using Test
             c = get_curve("hsx", jcoil)
 
             for j in 1:nϕ
-                dℓdϕ, κ, τ, tangent, normal, binormal = Frenet_frame(c, ϕ[j])
+                dℓdϕ, κ, τ, γ0, tangent, normal, binormal = Frenet_frame(c, ϕ[j])
                 @test κ ≈ κ_python[j, jcoil]
                 @test τ ≈ τ_python[j, jcoil]
             end

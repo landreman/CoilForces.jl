@@ -16,10 +16,11 @@ end
 Biot_savart_prefactor = μ0 / (4π)
 
 function d_B_d_ϕ(coil::Coil, ϕ, r_eval; regularization=0.0)
-    Δr = r_eval - γ(coil.curve, ϕ)
+    data = γ_and_derivative(coil.curve, ϕ)
+    Δr = r_eval - data[:, 1]
     temp = normsq(Δr) + regularization
     denominator = temp * sqrt(temp)
-    return coil.current * Biot_savart_prefactor * cross(dγdϕ(coil.curve, ϕ), Δr) / denominator
+    return coil.current * Biot_savart_prefactor * cross(data[:, 2], Δr) / denominator
 end
 
 """
@@ -27,14 +28,15 @@ end
 ϕ0: curve parameter at which we are evaluating B.
 """
 function d_B_d_ϕ_singularity_subtracted(coil::Coil, ϕ, r_eval, regularization, ϕ0, r_prime_prime_cross_r_prime, dℓdϕ_squared)
-    Δr = r_eval - γ(coil.curve, ϕ)
+    data = γ_and_derivative(coil.curve, ϕ)
+    Δr = r_eval - data[:, 1]
     temp = normsq(Δr) + regularization
     denominator = temp * sqrt(temp)
     cos_fac = 2 - 2 * cos(ϕ - ϕ0)
     temp2 = cos_fac * dℓdϕ_squared + regularization
     denominator2 = temp2 * sqrt(temp2)
     return coil.current * Biot_savart_prefactor * (
-        cross(dγdϕ(coil.curve, ϕ), Δr) / denominator
+        cross(data[:, 2], Δr) / denominator
         + (0.5 * cos_fac / denominator2) * r_prime_prime_cross_r_prime
     )
 end
@@ -78,11 +80,12 @@ function B_filament_adaptive(coil::Coil, r_eval; regularization=0.0, reltol=1e-8
 end
 
 function singularity_term(coil::Coil, ϕ)
-    r_prime = dγdϕ(coil.curve, ϕ)
+    data = γ_and_2_derivatives(coil.curve, ϕ)
+    r_prime = data[:, 2]
     dϕdℓ = 1 / norm(r_prime)
     δ = coil.aminor * coil.aminor / sqrt(ℯ)
     return (μ0 * coil.current / (4π) * dϕdℓ * dϕdℓ * dϕdℓ * (1 + log(sqrt(δ) * dϕdℓ / 8)) 
-        * cross(d2γdϕ2(coil.curve, ϕ), r_prime))
+        * cross(data[:, 3], r_prime))
 end
 
 """
@@ -97,9 +100,12 @@ specified number of points, nϕ.
 function B_singularity_subtraction_fixed(coil::Coil, ϕ0, nϕ)
     dϕ = 2π / nϕ
     B = [0.0, 0.0, 0.0]
-    r_eval = γ(coil.curve, ϕ0)
-    r_prime = dγdϕ(coil.curve, ϕ0)
-    r_prime_prime = d2γdϕ2(coil.curve, ϕ0)
+    
+    data = γ_and_2_derivatives(coil.curve, ϕ0)
+    r_eval = data[:, 1]
+    r_prime = data[:, 2]
+    r_prime_prime = data[:, 3]
+    
     dℓdϕ_squared = normsq(r_prime)
     r_prime_prime_cross_r_prime = cross(r_prime_prime, r_prime)
     δ = coil.aminor * coil.aminor / sqrt(ℯ)
@@ -118,15 +124,13 @@ compute the integrand for evaluating B.
 See 20221016-01 Numerical evaluation of B for finite thickness coil.lyx
 """
 function B_finite_thickness_integrand!(coil::Coil, ρ, θ, ϕ, r_eval, dB)
-    dℓdϕ, κ, τ, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
+    dℓdϕ, κ, τ, γ0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
     cosθ = cos(θ)
-    r = γ(coil.curve, ϕ) + ρ * cosθ * normal + ρ * sin(θ) * binormal
+    r = γ0 + ρ * cosθ * normal + ρ * sin(θ) * binormal
     Δr = r_eval - r
     temp = 1 / normsq(Δr)
-    #denominator = temp * sqrt(temp)
     sqrtg = (1 - κ * ρ * cosθ) * ρ * dℓdϕ
-    # prefactor = coil.current / (π * coil.aminor * coil.aminor) * Biot_savart_prefactor
-    dB[:] = (sqrtg * temp * sqrt(temp)) * cross(tangent, Δr)
+    dB[:] .= (sqrtg * temp * sqrt(temp)) * cross(tangent, Δr)
 end
 
 """
@@ -136,7 +140,6 @@ function B_finite_thickness(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5)
     prefactor = coil.current / (π * coil.aminor * coil.aminor) * Biot_savart_prefactor
 
     function Biot_savart_cubature_func!(xp, v)
-        #v[:] = Biot_savart_integrand(x, y, z, xp[1], xp[2], xp[3])
         B_finite_thickness_integrand!(coil, xp[1], xp[2], xp[3], r_eval, v)
     end
 
