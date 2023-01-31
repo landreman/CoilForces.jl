@@ -16,6 +16,7 @@ PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 [compat]
 Cubature = "1"
 Plots = "1"
+ProfileView = "1"
 PyCall = "1"
 PyPlot = "2"
 julia = "1"
