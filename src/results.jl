@@ -206,7 +206,7 @@ function plot_B_near_thick_circular_coil()
     R0 = 2.3
 
     # Minor radius of coil [meters]
-    aminor = 0.02
+    aminor = 0.2
 
     # Total current [Amperes]
     I = 3.1e6
@@ -239,4 +239,175 @@ function plot_B_near_thick_circular_coil()
     θplot = collect(range(0, 2π, length=nθ))
     plot!(R0 .+ aminor * cos.(θplot), aminor * sin.(θplot), linewidth=3, color=:black, label="coil edge")
 
+end
+
+function save_high_fidelity_force_for_circular_coil()
+    reltol = 1e-5
+    #abstol = reltol * 1e+0
+    abstol = 1e-9
+
+    #a_over_R = 10 .^ collect(((-4):(0.5):(-0.5)))
+    a_over_R = 10 .^ collect(((-3):(0.5):(-3)))
+    println("Values of a/R that will be evaluated: ", a_over_R)
+
+    # Major radius of coil [meters]
+    R0 = 1.0
+    curve = CurveCircle(R0)
+
+    # Total current [Amperes]
+    I = 1.0
+
+    high_fidelity_over_analytic_force = similar(a_over_R)
+    times = similar(a_over_R)
+    for ja in 1:length(a_over_R)
+        a = a_over_R[ja]
+        println("a = ", a)
+        coil = Coil(curve, I, a)
+
+        ϕ = 0
+        time_data = @timed force = force_finite_thickness(coil, ϕ, reltol=reltol, abstol=abstol)
+        analytic = analytic_force_per_unit_length(coil)
+        high_fidelity_over_analytic_force[ja] = force[1] / analytic
+        times[ja] = time_data.time
+        println("  time: $(time_data.time)  analytic force: $(analytic)  (high fidelity force) / (analytic force): ", high_fidelity_over_analytic_force[ja])
+    end
+    @show high_fidelity_over_analytic_force
+
+    """
+    filename = "circular_coil_high_fidelity_over_analytic_force_rtol_$(reltol)_atol_$(abstol).dat"
+    open(filename, "w") do file
+        write(file, "a/R, (high fidelity force)/(analytic force), time\n")
+        for ja in 1:length(a_over_R)
+            write(file, "$(a_over_R[ja]), $(high_fidelity_over_analytic_force[ja]), $(times[ja])\n")
+        end
+    end
+    """
+end
+
+
+function save_high_fidelity_force_for_circular_coil_vary_tol()
+    #a_over_R = 10 .^ collect(((-4):(0.5):(-0.5)))
+    a_over_R = 10 .^ collect(((-4):(0.5):(-4)))
+    println("Values of a/R that will be evaluated: ", a_over_R)
+
+    # Major radius of coil [meters]
+    R0 = 1.0
+    curve = CurveCircle(R0)
+
+    # Total current [Amperes]
+    I = 1.0
+
+    high_fidelity_over_analytic_force = similar(a_over_R)
+    times = similar(a_over_R)
+    abstols = similar(a_over_R)
+    reltols = similar(a_over_R)
+    for ja in 1:length(a_over_R)
+        a = a_over_R[ja]
+        coil = Coil(curve, I, a)
+
+        reltol = 1e-2
+        #abstol = reltol * 1e+0
+        abstol = 1e-12
+        reltols[ja] = reltol
+        abstols[js] = abstol
+        println("a = $(a),  abstol = $(abstol),  reltol = $(reltol)")
+        
+        ϕ = 0
+        time_data = @timed force = force_finite_thickness(coil, ϕ, reltol=reltol, abstol=abstol)
+        analytic = analytic_force_per_unit_length(coil)
+        high_fidelity_over_analytic_force[ja] = force[1] / analytic
+        times[ja] = time_data.time
+        println("  time: $(time_data.time)  analytic force: $(analytic)  (high fidelity force) / (analytic force): ", high_fidelity_over_analytic_force[ja])
+    end
+    @show high_fidelity_over_analytic_force
+
+    """
+    filename = "circular_coil_high_fidelity_over_analytic_force_rtol_$(reltol)_atol_$(abstol).dat"
+    open(filename, "w") do file
+        write(file, "a/R, (high fidelity force)/(analytic force), time\n")
+        for ja in 1:length(a_over_R)
+            write(file, "$(a_over_R[ja]), $(high_fidelity_over_analytic_force[ja]), $(times[ja])\n")
+        end
+    end
+    """
+end
+
+function save_high_fidelity_force_for_circular_coil_tol_scan()
+    a_over_R = 0.1
+
+    # Major radius of coil [meters]
+    R0 = 1.0
+    curve = CurveCircle(R0)
+
+    # Total current [Amperes]
+    #I = 1.0
+    I = 3.1e6
+
+    coil = Coil(curve, I, a_over_R)
+
+    reltols = 10 .^ collect(((-6):(1.0):(-1)))
+    #reltols = [1e-2, 1e-4]
+    println("Values of reltol that will be evaluated: ", reltols)
+    n_reltols = length(reltols)
+
+    abstols = 10 .^ collect(((-5):(1.0):(-1)))
+    #abstols = [1e-6, 1e-4, 1e-2]
+    println("Values of abstol that will be evaluated: ", abstols)
+    n_abstols = length(abstols)
+
+    high_fidelity_over_analytic_force = zeros(n_reltols, n_abstols)
+    times = zeros(n_reltols, n_abstols)
+    for ja in 1:n_abstols
+        for jr in 1:n_reltols
+            abstol = abstols[ja]
+            reltol = reltols[jr]
+
+            println("abstol = $(abstol),  reltol = $(reltol)")
+            
+            ϕ = 0
+            time_data = @timed force = force_finite_thickness(coil, ϕ, reltol=reltol, abstol=abstol)
+            analytic = analytic_force_per_unit_length(coil)
+            high_fidelity_over_analytic_force[jr, ja] = force[1] / analytic
+            times[jr, ja] = time_data.time
+            println("  time: $(time_data.time)  analytic force: $(analytic)  (high fidelity force) / (analytic force): ", high_fidelity_over_analytic_force[ja])
+        end
+    end
+    @show high_fidelity_over_analytic_force
+
+    directory = "/Users/mattland/Box/work23/20230214-07_circular_coil_high_fidelity_over_analytic_convergence/"
+    filename = "circular_coil_high_fidelity_over_analytic_force_a$(a_over_R)_$(Dates.now()).dat"
+    open(directory * filename, "w") do file
+
+        write(file, "abstols:\n")
+        for ja in 1:n_abstols
+            if ja > 1 write(file, ",") end
+            write(file, "$(abstols[ja])")
+        end
+        write(file, "\n")
+
+        write(file, "reltols:\n")
+        for jr in 1:n_reltols
+            if jr > 1 write(file, ",") end
+            write(file, "$(reltols[jr])")
+        end
+        write(file, "\n")
+
+        write(file, "(high fidelity force)/(analytic force):\n")
+        for jr in 1:n_reltols
+            for ja in 1:n_abstols
+                if ja > 1 write(file, ",") end
+                write(file, "$(high_fidelity_over_analytic_force[jr, ja])")
+            end
+            write(file, "\n")
+        end
+
+        write(file, "time:\n")
+        for jr in 1:n_reltols
+            for ja in 1:n_abstols
+                if ja > 1 write(file, ",") end
+                write(file, "$(times[jr, ja])")
+            end
+            write(file, "\n")
+        end
+    end
 end
