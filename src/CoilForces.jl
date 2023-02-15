@@ -16,6 +16,7 @@ export B_finite_thickness
 export get_curve
 export plot_force_for_HSX, plot_integrand
 export force_finite_thickness
+export hifi_circular_coil_compute_Bz, hifi_circular_coil_force
 
 include("utils.jl")
 include("Curve.jl")
@@ -25,5 +26,6 @@ include("configs.jl")
 include("BiotSavart.jl")
 include("results.jl")
 include("force.jl")
+include("hifi_circular_coil.jl")
 
 end
