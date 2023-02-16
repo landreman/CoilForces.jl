@@ -12,7 +12,7 @@ using Test
         # Coil minor radius
         a = 0.001
         
-        Biot_savart_prefactor = I * μ0 / (4 * π^2 * a^2)
+        Biot_savart_prefactor = I * μ0 / (4 * π^2)
         nz = 10
         z = collect(range(-5, 5, length=nz))
         Bz_analytic = @. 0.5 * μ0 * I * R0^2 / ((R0^2 + z^2) ^ 1.5)

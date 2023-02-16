@@ -241,13 +241,17 @@ function plot_B_near_thick_circular_coil()
 
 end
 
-function save_high_fidelity_force_for_circular_coil()
-    reltol = 1e-5
-    #abstol = reltol * 1e+0
-    abstol = 1e-9
+function save_high_fidelity_force_for_circular_coil_a_scan()
+    #reltol = 3e-7
+    #abstol = 3e-7
+    reltol = 1e-6
+    abstol = 1e-6
 
     #a_over_R = 10 .^ collect(((-4):(0.5):(-0.5)))
-    a_over_R = 10 .^ collect(((-3):(0.5):(-3)))
+    #a_over_R = 10 .^ collect(((-2.25):(0.25):(-0.5)))
+    #a_over_R = 10 .^ collect(((-1.0):(0.1):(-0.1)))
+    #a_over_R = 10 .^ collect(((-2.5):(0.0625):(-0.01)))
+    a_over_R = 10 .^ collect(((-0.1875):(0.0625):(0.0)))
     println("Values of a/R that will be evaluated: ", a_over_R)
 
     # Major radius of coil [meters]
@@ -264,24 +268,24 @@ function save_high_fidelity_force_for_circular_coil()
         println("a = ", a)
         coil = Coil(curve, I, a)
 
-        ϕ = 0
-        time_data = @timed force = force_finite_thickness(coil, ϕ, reltol=reltol, abstol=abstol)
+        time_data = @timed force = hifi_circular_coil_force(R0, a, I; reltol=reltol, abstol=abstol)
         analytic = analytic_force_per_unit_length(coil)
-        high_fidelity_over_analytic_force[ja] = force[1] / analytic
+        high_fidelity_over_analytic_force[ja] = force / analytic
         times[ja] = time_data.time
         println("  time: $(time_data.time)  analytic force: $(analytic)  (high fidelity force) / (analytic force): ", high_fidelity_over_analytic_force[ja])
     end
     @show high_fidelity_over_analytic_force
 
-    """
-    filename = "circular_coil_high_fidelity_over_analytic_force_rtol_$(reltol)_atol_$(abstol).dat"
-    open(filename, "w") do file
+    #directory = "/Users/mattland/Box/work23/20230214-07_circular_coil_high_fidelity_over_analytic_convergence/"
+    directory = "/Users/mattland/Box/work23/20230216-01_circular_coil_high_fidelity_over_analytic_convergence/"
+    filename = "circular_coil_high_fidelity_over_analytic_force_rtol_$(reltol)_atol_$(abstol)_$(Dates.now()).dat"
+    open(directory * filename, "w") do file
         write(file, "a/R, (high fidelity force)/(analytic force), time\n")
         for ja in 1:length(a_over_R)
             write(file, "$(a_over_R[ja]), $(high_fidelity_over_analytic_force[ja]), $(times[ja])\n")
         end
     end
-    """
+    
 end
 
 
@@ -368,6 +372,84 @@ function save_high_fidelity_force_for_circular_coil_tol_scan()
             time_data = @timed force = force_finite_thickness(coil, ϕ, reltol=reltol, abstol=abstol)
             analytic = analytic_force_per_unit_length(coil)
             high_fidelity_over_analytic_force[jr, ja] = force[1] / analytic
+            times[jr, ja] = time_data.time
+            println("  time: $(time_data.time)  analytic force: $(analytic)  (high fidelity force) / (analytic force): ", high_fidelity_over_analytic_force[ja])
+        end
+    end
+    @show high_fidelity_over_analytic_force
+
+    directory = "/Users/mattland/Box/work23/20230214-07_circular_coil_high_fidelity_over_analytic_convergence/"
+    filename = "circular_coil_high_fidelity_over_analytic_force_a$(a_over_R)_$(Dates.now()).dat"
+    open(directory * filename, "w") do file
+
+        write(file, "abstols:\n")
+        for ja in 1:n_abstols
+            if ja > 1 write(file, ",") end
+            write(file, "$(abstols[ja])")
+        end
+        write(file, "\n")
+
+        write(file, "reltols:\n")
+        for jr in 1:n_reltols
+            if jr > 1 write(file, ",") end
+            write(file, "$(reltols[jr])")
+        end
+        write(file, "\n")
+
+        write(file, "(high fidelity force)/(analytic force):\n")
+        for jr in 1:n_reltols
+            for ja in 1:n_abstols
+                if ja > 1 write(file, ",") end
+                write(file, "$(high_fidelity_over_analytic_force[jr, ja])")
+            end
+            write(file, "\n")
+        end
+
+        write(file, "time:\n")
+        for jr in 1:n_reltols
+            for ja in 1:n_abstols
+                if ja > 1 write(file, ",") end
+                write(file, "$(times[jr, ja])")
+            end
+            write(file, "\n")
+        end
+    end
+end
+
+function save_high_fidelity_force_for_circular_coil2_tol_scan()
+    a_over_R = 0.01
+
+    # Major radius of coil [meters]
+    R0 = 1.0
+    curve = CurveCircle(R0)
+
+    # Total current [Amperes]
+    I = 1.0
+    
+    coil = Coil(curve, I, a_over_R)
+
+    reltols = 10 .^ collect(((-6):(1.0):(-2)))
+    #reltols = [1e-2, 1e-4]
+    println("Values of reltol that will be evaluated: ", reltols)
+    n_reltols = length(reltols)
+
+    abstols = 10 .^ collect(((-8):(1.0):(-3)))
+    #abstols = [1e-6, 1e-4, 1e-2]
+    println("Values of abstol that will be evaluated: ", abstols)
+    n_abstols = length(abstols)
+
+    high_fidelity_over_analytic_force = zeros(n_reltols, n_abstols)
+    times = zeros(n_reltols, n_abstols)
+    for ja in 1:n_abstols
+        for jr in 1:n_reltols
+            abstol = abstols[ja]
+            reltol = reltols[jr]
+
+            println("abstol = $(abstol),  reltol = $(reltol)")
+            
+            time_data = @timed force = hifi_circular_coil_force(R0, a_over_R, I; reltol=reltol, abstol=abstol)
+            analytic = analytic_force_per_unit_length(coil)
+            high_fidelity_over_analytic_force[jr, ja] = force / analytic
             times[jr, ja] = time_data.time
             println("  time: $(time_data.time)  analytic force: $(analytic)  (high fidelity force) / (analytic force): ", high_fidelity_over_analytic_force[ja])
         end
