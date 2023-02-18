@@ -34,10 +34,10 @@ function hifi_circular_coil_Biot_savart_z_integrand(R0, a, x, z, ρ, θ, ϕ)
 end
 
 """
-Compute B_z at a point with specified Cartesian coordinates. The prefactor 
-I * μ0 / (4 π^2) is not included!
+Compute B_z at a point with specified Cartesian coordinates. In this version of
+the function, the prefactor I * μ0 / (4 π^2) is not included!
 """
-function hifi_circular_coil_compute_Bz(R0, a, x, z; reltol=1e-3, abstol=1e-5)
+function hifi_circular_coil_compute_Bz_normalized(R0, a, x, z; reltol=1e-3, abstol=1e-5)
     function Biot_savart_cubature_func(xp)
         return hifi_circular_coil_Biot_savart_z_integrand(R0, a, x, z, xp[1], xp[2], xp[3])
     end
@@ -50,6 +50,15 @@ function hifi_circular_coil_compute_Bz(R0, a, x, z; reltol=1e-3, abstol=1e-5)
         rtol=reltol,
         )
     return val
+end
+
+"""
+Compute B_z at a point with specified Cartesian coordinates. The prefactor 
+I * μ0 / (4 π^2) is included in this version.
+"""
+function hifi_circular_coil_compute_Bz(R0, a, I, x, z; reltol=1e-3, abstol=1e-5)
+    prefactor = I * μ0 / (4 * π^2)
+    return prefactor * hifi_circular_coil_compute_Bz_normalized(R0, a, x, z; reltol=reltol, abstol=abstol)
 end
 
 """
@@ -67,7 +76,7 @@ function hifi_circular_coil_force(R0, a, I; reltol=1e-3, abstol=1e-5)
         r = ρ * a
         R = R0 + r * cos(θ)
         # Evaluate B_z at (x, y, z)=(R, 0, r * sin(θ)):
-        Bz = hifi_circular_coil_compute_Bz(R0, a, R, r * sin(θ); abstol=abstol, reltol=reltol)
+        Bz = hifi_circular_coil_compute_Bz_normalized(R0, a, R, r * sin(θ); abstol=abstol, reltol=reltol)
         return ρ * (R / R0) * Bz
     end
 

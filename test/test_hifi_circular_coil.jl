@@ -12,7 +12,6 @@ using Test
         # Coil minor radius
         a = 0.001
         
-        Biot_savart_prefactor = I * μ0 / (4 * π^2)
         nz = 10
         z = collect(range(-5, 5, length=nz))
         Bz_analytic = @. 0.5 * μ0 * I * R0^2 / ((R0^2 + z^2) ^ 1.5)
@@ -21,10 +20,13 @@ using Test
         for j in 1:nz
             r_eval = [0, 0, z[j]]
             # Evaluate Bz at (x, y, z) = (0, 0, z[j]):
-            Bz_numerical[j] = Biot_savart_prefactor * hifi_circular_coil_compute_Bz(R0, a, 0, z[j]; reltol=1e-11, abstol=1e-13)
+            Bz_numerical[j] = hifi_circular_coil_compute_Bz(R0, a, I, 0, z[j]; reltol=1e-11, abstol=1e-13)
         end
         @test maximum(abs.(Bz_numerical ./ Bz_analytic .- 1)) < 1e-7
 
+    end
+
+    @testset "Compare specialized routine for circular coil to the hifi routine for general curve shapes" begin
     end
 end
 
