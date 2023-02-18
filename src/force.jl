@@ -7,26 +7,28 @@ function force_finite_thickness(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
     r0 = γ(coil.curve, ϕ)
     dℓdϕ, κ, τ, γ0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
 
-    prefactor = coil.current / (π * coil.aminor * coil.aminor)
-
     function force_cubature_func(xp)
         ρ = xp[1]
         θ = xp[2]
+        r = ρ * coil.aminor
         cosθ = cos(θ)
-        sqrtg = (1 - κ * ρ * cosθ) * ρ
-        r_eval = r0 + ρ * cosθ * normal + ρ * sin(θ) * binormal
-        B = B_finite_thickness(coil, r_eval, reltol=reltol, abstol=abstol)
+        sqrtg = (1 - κ * r * cosθ) * ρ
+        r_eval = r0 + r * cosθ * normal + r * sin(θ) * binormal
+        B = B_finite_thickness_normalized(coil, r_eval, reltol=reltol, abstol=abstol)
         return sqrtg * cross(tangent, B)
     end
 
     force_xmin = [0, 0]
-    force_xmax = [coil.aminor, 2π]
+    force_xmax = [1, 2π]
     
     val, err = hcubature(
         force_cubature_func, 
         force_xmin,
         force_xmax;
         atol=abstol,
-        rtol=reltol)
-    return prefactor * val
+        rtol=reltol
+    )
+    Biot_savart_prefactor = coil.current * μ0 / (4 * π^2)
+    force_prefactor = coil.current / π
+    return Biot_savart_prefactor * force_prefactor * val
 end

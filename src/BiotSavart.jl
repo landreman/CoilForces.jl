@@ -134,11 +134,11 @@ function B_finite_thickness_integrand(coil::Coil, ρ, θ, ϕ, r_eval)
 end
 
 """
-Compute the magnetic field vector at a point with specified Cartesian coordinates.
+Compute the magnetic field vector at a point with specified Cartesian
+coordinates. In this version of the function, the prefactor μ0 I / (4 π^2) is
+not included!
 """
-function B_finite_thickness(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5)
-    prefactor = coil.current / (π) * Biot_savart_prefactor
-
+function B_finite_thickness_normalized(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5)
     function Biot_savart_cubature_func(xp)
         return B_finite_thickness_integrand(coil, xp[1], xp[2], xp[3], r_eval)
     end
@@ -156,5 +156,16 @@ function B_finite_thickness(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5)
         Biot_savart_xmax;
         atol=abstol,
         rtol=reltol)
-    return prefactor * val
+    return val
+end
+
+
+"""
+Compute the magnetic field vector at a point with specified Cartesian
+coordinates. In this version of the function, the prefactor μ0 I / (4 π^2) is
+included.
+"""
+function B_finite_thickness(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5)
+    prefactor = coil.current / (π) * Biot_savart_prefactor
+    return prefactor * B_finite_thickness_normalized(coil, r_eval; reltol=reltol, abstol=abstol)
 end

@@ -65,7 +65,7 @@ using Test
         print("Difference:")
         display(Bz_specialized - Bz_general)
         """
-        
+
         @test Bz_specialized ≈ Bz_general rtol=1e-5
     end
 end
@@ -91,5 +91,66 @@ end
         @time force = hifi_circular_coil_force(R0, a, I; reltol=reltol, abstol=abstol)
         @show force
         @test force ≈ analytic_force_per_unit_length(coil) rtol=1e-3
+    end
+
+    @testset "Test that the specialized and general high fidelity methods give the same result" begin
+        # Major radius of coil [meters]
+        R0 = 1.7
+
+        # Minor radius of coil [meters]
+        a = 1.4
+
+        # Total current [Amperes]
+        I = 3.1e6
+
+        curve = CurveCircle(R0)
+        coil = Coil(curve, I, a)
+
+        @time force_specialized = hifi_circular_coil_force(R0, a, I; reltol=1e-4, abstol=1e-8)
+        @show force_specialized
+        @time force_general = force_finite_thickness(coil, 0, reltol=1e-3, abstol=1e-8)
+        @show force_general
+        @test force_specialized ≈ force_general[1] rtol=1e-3
+    end
+
+    @testset "Compare high fidelity force calculation to reference values for low aspect ratio" begin
+        reltol = 1e-4
+        abstol = 1e-4
+
+        a_over_R = 10 .^ collect(((-0.5):(0.125):(0)))
+        println("Values of a/R that will be evaluated: ", a_over_R)
+
+        # Major radius of coil [meters]
+        R0 = 1.0
+        curve = CurveCircle(R0)
+
+        # Total current [Amperes]
+        I = 1.0
+
+        high_fidelity_over_analytic_force = similar(a_over_R)
+        times = similar(a_over_R)
+        for ja in 1:length(a_over_R)
+            a = a_over_R[ja]
+            println("a = ", a)
+            coil = Coil(curve, I, a)
+
+            time_data = @timed force = hifi_circular_coil_force(R0, a, I; reltol=reltol, abstol=abstol)
+            analytic = analytic_force_per_unit_length(coil)
+            high_fidelity_over_analytic_force[ja] = force / analytic
+            times[ja] = time_data.time
+            println("  time: $(time_data.time)  analytic force: $(analytic)  (high fidelity force) / (analytic force): ", high_fidelity_over_analytic_force[ja])
+        end
+        @show high_fidelity_over_analytic_force
+
+        # Reference values from
+        # ~/Box/work23/20230216-01_circular_coil_high_fidelity_over_analytic_convergence/circular_coil_high_fidelity_over_analytic_force_rtol_0.0001_atol_0.0001_2023-02-16T08:15:20.764.dat
+        reference_values = [
+            0.987053088134848,
+            0.9768546133681183,
+            0.958577885497475,
+            0.9257715919286639,
+            0.8672151058186467,
+        ]
+        @test high_fidelity_over_analytic_force ≈ reference_values
     end
 end
