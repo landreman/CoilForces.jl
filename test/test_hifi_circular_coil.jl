@@ -27,6 +27,46 @@ using Test
     end
 
     @testset "Compare specialized routine for circular coil to the hifi routine for general curve shapes" begin
+        # Major radius of coil [meters]
+        R0 = 2.3
+
+        # Minor radius of coil [meters]
+        aminor = 0.5
+
+        # Total current [Amperes]
+        I = 3.1e6
+
+        reltol = 1e-4
+        abstol = 1e-10
+        nx = 5
+        nz = 3
+
+        curve = CurveCircle(R0)
+        coil = Coil(curve, I, aminor)
+
+        xplot = collect(range(R0 - aminor, R0 + aminor, length=nx))
+        zplot = collect(range(- aminor, aminor, length=nz))
+        Bz_specialized = zeros(nz, nx)
+        Bz_general = zeros(nz, nx)
+
+        for jx in 1:nx
+            for jz in 1:nz
+                r_eval = [xplot[jx], 0, zplot[jz]]
+                B = B_finite_thickness(coil, r_eval, reltol=reltol, abstol=abstol)
+                Bz_general[jz, jx] = B[3]
+                Bz_specialized[jz, jx] = hifi_circular_coil_compute_Bz(R0, aminor, I, xplot[jx], zplot[jz]; reltol=reltol, abstol=abstol)
+            end
+        end
+        """
+        print("Bz_specialized:")
+        display(Bz_specialized)
+        print("Bz_general:")
+        display(Bz_general)
+        print("Difference:")
+        display(Bz_specialized - Bz_general)
+        """
+        
+        @test Bz_specialized ≈ Bz_general rtol=1e-5
     end
 end
 

@@ -12,7 +12,7 @@ Ideas:
 Returns just the z component of the Biot-Savart integrand
 
 (x, 0, z) is the evaluation point.
-(r, θ, ϕ) is the source location.
+(ρ, θ, ϕ) is the source location.
 """
 function hifi_circular_coil_Biot_savart_z_integrand(R0, a, x, z, ρ, θ, ϕ)
     r = ρ * a
@@ -27,10 +27,9 @@ function hifi_circular_coil_Biot_savart_z_integrand(R0, a, x, z, ρ, θ, ϕ)
     #dy = y - yp
     dy = -yp  # Since y=0
     dz = z - zp
-    # Add a tiny number before dividing, so avoid divide-by-0 errors.
+    # Add a tiny number before dividing, to avoid divide-by-0 errors.
     dr_inv = 1 / (sqrt(dx * dx + dy * dy + dz * dz) + 1.0e-100)
-    factor = dr_inv * dr_inv * dr_inv * sqrtg
-    return -factor * (sinϕ * dy + cosϕ * dx)
+    return -sqrtg * dr_inv * dr_inv * dr_inv * (sinϕ * dy + cosϕ * dx)
 end
 
 """
@@ -67,7 +66,7 @@ the high fidelity model.
 """
 function hifi_circular_coil_force(R0, a, I; reltol=1e-3, abstol=1e-5)
     """
-    Given (r, θ) in the ϕ=0 plane, evaluate the integrand for computing the x
+    Given (ρ, θ) in the ϕ=0 plane, evaluate the integrand for computing the x
     component of the force, F_x:
     """
     function force_integrand(xx)

@@ -127,7 +127,7 @@ function B_finite_thickness_integrand(coil::Coil, ρ, θ, ϕ, r_eval)
     dℓdϕ, κ, τ, r, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
     cosθ = cos(θ)
     @. r += (ρ * cosθ) * normal + (ρ * sin(θ)) * binormal - r_eval
-    temp = 1 / normsq(r)
+    temp = 1 / (normsq(r) + 1e-200)
     sqrtg = (1 - κ * ρ * cosθ) * ρ * dℓdϕ
     return (sqrtg * temp * sqrt(temp)) * cross(r, tangent)
 end
