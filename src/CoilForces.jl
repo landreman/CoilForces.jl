@@ -1,8 +1,7 @@
 module CoilForces
 
 import LinearAlgebra
-using Cubature
-import HCubature
+using HCubature
 using Plots
 using Printf
 using Dates

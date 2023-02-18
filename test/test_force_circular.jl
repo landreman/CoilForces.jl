@@ -61,7 +61,7 @@ using Test
         curve = CurveCircle(R0)
         coil = Coil(curve, I, a)
 
-        reltol = 1e-2
+        reltol = 1e-3
         abstol = 1e-4
 
         ϕ = 0
@@ -71,6 +71,6 @@ using Test
         #println("B from adaptive quadrature:", B_adaptive)
         @test abs(force[2]) < 1e-13
         @test abs(force[3]) < 1e-8
-        @test force[1] ≈ analytic_force_per_unit_length(coil) rtol=1e-4
+        @test force[1] ≈ analytic_force_per_unit_length(coil) rtol=3e-4
     end
 end

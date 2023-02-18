@@ -244,14 +244,14 @@ end
 function save_high_fidelity_force_for_circular_coil_a_scan()
     #reltol = 3e-7
     #abstol = 3e-7
-    reltol = 1e-6
-    abstol = 1e-6
+    reltol = 1e-7
+    abstol = 1e-7
 
     #a_over_R = 10 .^ collect(((-4):(0.5):(-0.5)))
     #a_over_R = 10 .^ collect(((-2.25):(0.25):(-0.5)))
     #a_over_R = 10 .^ collect(((-1.0):(0.1):(-0.1)))
-    #a_over_R = 10 .^ collect(((-2.5):(0.0625):(-0.01)))
-    a_over_R = 10 .^ collect(((-0.1875):(0.0625):(0.0)))
+    a_over_R = 10 .^ collect(((-2.5):(0.0625):(0)))
+    #a_over_R = 10 .^ collect(((0.0):(0.0625):(0.0)))
     println("Values of a/R that will be evaluated: ", a_over_R)
 
     # Major radius of coil [meters]

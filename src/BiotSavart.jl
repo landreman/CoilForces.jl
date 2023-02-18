@@ -72,10 +72,10 @@ Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
 infinitesmally thin filament. Use adaptive quadrature.
 """
 function B_filament_adaptive(coil::Coil, r_eval; regularization=0.0, reltol=1e-8, abstol=1e-14)
-    function Biot_Savart_integrand!(ϕ0, v) 
-        v[:] = d_B_d_ϕ(coil, ϕ0, r_eval, regularization=regularization)
+    function Biot_Savart_integrand(ϕ0) 
+        return d_B_d_ϕ(coil, ϕ0, r_eval, regularization=regularization)
     end
-    val, err = hquadrature(3, Biot_Savart_integrand!, 0, 2π, reltol=reltol, abstol=abstol)
+    val, err = hquadrature(Biot_Savart_integrand, 0, 2π; rtol=reltol, atol=abstol)
     return val
 end
 
@@ -123,13 +123,13 @@ compute the integrand for evaluating B.
 
 See 20221016-01 Numerical evaluation of B for finite thickness coil.lyx
 """
-function B_finite_thickness_integrand!(coil::Coil, ρ, θ, ϕ, r_eval, dB)
+function B_finite_thickness_integrand(coil::Coil, ρ, θ, ϕ, r_eval)
     dℓdϕ, κ, τ, r, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
     cosθ = cos(θ)
     @. r += (ρ * cosθ) * normal + (ρ * sin(θ)) * binormal - r_eval
     temp = 1 / normsq(r)
     sqrtg = (1 - κ * ρ * cosθ) * ρ * dℓdϕ
-    dB[:] .= (sqrtg * temp * sqrt(temp)) * cross(r, tangent)
+    return (sqrtg * temp * sqrt(temp)) * cross(r, tangent)
 end
 
 """
@@ -138,8 +138,8 @@ Compute the magnetic field vector at a point with specified Cartesian coordinate
 function B_finite_thickness(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5)
     prefactor = coil.current / (π * coil.aminor * coil.aminor) * Biot_savart_prefactor
 
-    function Biot_savart_cubature_func!(xp, v)
-        B_finite_thickness_integrand!(coil, xp[1], xp[2], xp[3], r_eval, v)
+    function Biot_savart_cubature_func(xp)
+        return B_finite_thickness_integrand(coil, xp[1], xp[2], xp[3], r_eval)
     end
 
     Biot_savart_xmin = [0, 0, 0]
@@ -150,11 +150,10 @@ function B_finite_thickness(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5)
     #Biot_savart_xmax = [a, 0.1 + π, 0.1 + π]
 
     val, err = hcubature(
-        3,
-        Biot_savart_cubature_func!, 
+        Biot_savart_cubature_func, 
         Biot_savart_xmin,
-        Biot_savart_xmax,
-        abstol=abstol,
-        reltol=reltol)
+        Biot_savart_xmax;
+        atol=abstol,
+        rtol=reltol)
     return prefactor * val
 end

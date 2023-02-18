@@ -42,7 +42,7 @@ function hifi_circular_coil_compute_Bz(R0, a, x, z; reltol=1e-3, abstol=1e-5)
         return hifi_circular_coil_Biot_savart_z_integrand(R0, a, x, z, xp[1], xp[2], xp[3])
     end
 
-    val, err = HCubature.hcubature(
+    val, err = hcubature(
         Biot_savart_cubature_func, 
         [0, 0, 0],  # Lower integration bounds for (ρ, θ, ϕ)
         [1, 2π, 2π];  # Upper integration bounds for (ρ, θ, ϕ)
@@ -71,7 +71,7 @@ function hifi_circular_coil_force(R0, a, I; reltol=1e-3, abstol=1e-5)
         return ρ * (R / R0) * Bz
     end
 
-    @time force_without_prefactors, force_err = HCubature.hcubature(
+    @time force_without_prefactors, force_err = hcubature(
         force_integrand, 
         [0, 0],  # Lower integration bounds for (ρ, θ)
         [1, 2π];  # Upper integration bounds for (ρ, θ)
