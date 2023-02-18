@@ -53,7 +53,7 @@ using Test
         nϕ = 100
         for j in 1:nz
             r_eval = [0, 0, z[j]]
-            B_numerical[:, j] = B_finite_thickness(coil, r_eval, reltol=1e-11, abstol=1e-13)
+            B_numerical[:, j] = B_finite_thickness(coil, r_eval, reltol=1e-7, abstol=1e-8)
         end
         # Bx and By should be 0:
         @test maximum(abs.(B_numerical[1, :])) < 1e-10
@@ -115,7 +115,7 @@ using Test
         coil = Coil(curve, I, a)
 
         r_eval = [1.8, 0.7, 0.4]
-        B_julia = B_finite_thickness(coil, r_eval, reltol=1e-14, abstol=1e-14)
+        B_julia = B_finite_thickness(coil, r_eval, reltol=1e-5, abstol=1e-7)
         B_simsopt = [0.797460697498886, 0.3101236045829,   1.210433050274526]
         #println("point 1, julia:  ", B_julia)
         #println("point 1, simsopt:", B_simsopt)
@@ -123,7 +123,7 @@ using Test
         @test maximum(abs.(B_julia ./ B_simsopt .- 1)) < 1e-6
 
         r_eval = [-3.5, -2.7, -1.4]
-        B_julia = B_finite_thickness(coil, r_eval, reltol=1e-14, abstol=1e-14)
+        B_julia = B_finite_thickness(coil, r_eval, reltol=1e-6, abstol=1e-7)
         B_simsopt = [0.051493866798744,  0.039723840101888, -0.037540647636196]
         #println("point 1, julia:  ", B_julia)
         #println("point 1, simsopt:", B_simsopt)
@@ -154,7 +154,7 @@ using Test
             coil = Coil(curve, current, aminor)
             B_fixed = B_filament_fixed(coil, r_eval, 1600)
             B_adaptive = B_filament_adaptive(coil, r_eval)
-            B_thick = B_finite_thickness(coil, r_eval, reltol=1e-10, abstol=1e-10)
+            B_thick = B_finite_thickness(coil, r_eval, reltol=1e-5, abstol=1e-7)
             B_simsopt = data[jcoil, :]
             #println("point 1, adaptive:", B_adaptive)
             #println("point 1, fixed vs adaptive:", maximum(abs.(B_fixed ./ B_adaptive .- 1)))
