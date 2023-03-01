@@ -15,7 +15,7 @@ export d_B_d_ϕ_singularity_subtracted, B_singularity_subtraction_fixed
 export B_finite_thickness
 export get_curve
 export plot_force_for_HSX, plot_integrand
-export force_finite_thickness
+export force_finite_thickness, force_locally_circular_approximation
 export hifi_circular_coil_compute_Bz, hifi_circular_coil_force
 
 include("utils.jl")

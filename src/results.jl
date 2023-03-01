@@ -507,15 +507,18 @@ function plot_Fx_for_HSX_coil_1()
     regularization = aminor * aminor / sqrt(exp(1))
 
     force = zeros((neval, 3))
+    force_circular_approximation = zeros((neval, 3))
     ϕ = [2π * j / neval for j in 1:neval]
     for j in 1:neval
         position = γ(curve, ϕ[j])
         tangent_vector = tangent(curve, ϕ[j])
         B = B_filament_adaptive(coil, position; regularization=regularization)
         force[j, :] = current * cross(tangent_vector, B)
+        force_circular_approximation[j, :] = force_locally_circular_approximation(coil, ϕ[j])
     end
 
-    plot(ϕ, force[:, 1], label="x")
+    plot(ϕ, force[:, 1], label="filament, adaptive quadrature")
+    plot!(ϕ, force_circular_approximation[:, 1], label="locally circular approximation")
     #plot!(ϕ, force[:, 2], label="y")
     #plot!(ϕ, force[:, 3], label="z")
     xlabel!("ϕ")

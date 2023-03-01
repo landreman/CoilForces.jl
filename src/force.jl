@@ -32,3 +32,13 @@ function force_finite_thickness(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
     force_prefactor = coil.current / π
     return Biot_savart_prefactor * force_prefactor * val
 end
+
+"""
+Compute the self-force per unit length, using the locally circular
+approximation, Garren & Chen eq (34).
+"""
+function force_locally_circular_approximation(coil::Coil, ϕ)
+    differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
+    circular_coil = Coil(CurveCircle(1 / curvature), coil.current, coil.aminor)
+    return -normal * analytic_force_per_unit_length(circular_coil)
+end
