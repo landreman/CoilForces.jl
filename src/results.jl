@@ -496,7 +496,7 @@ end
 """
 This function reproduces a calculation from Siena's candidacy paper.
 """
-function plot_Fx_for_HSX_coil_1()
+function plot_Fx_for_HSX_coil_1_Siena()
     # Number of evaluation points for the force:
     neval = 300
 
@@ -508,7 +508,7 @@ function plot_Fx_for_HSX_coil_1()
 
     force = zeros((neval, 3))
     force_circular_approximation = zeros((neval, 3))
-    ϕ = [2π * j / neval for j in 1:neval]
+    ϕ = [2π * (j - 1) / neval for j in 1:neval]
     for j in 1:neval
         position = γ(curve, ϕ[j])
         tangent_vector = tangent(curve, ϕ[j])
@@ -521,6 +521,55 @@ function plot_Fx_for_HSX_coil_1()
     plot!(ϕ, force_circular_approximation[:, 1], label="locally circular approximation")
     #plot!(ϕ, force[:, 2], label="y")
     #plot!(ϕ, force[:, 3], label="z")
+    xlabel!("ϕ")
+    title!("dFₓ/dℓ for HSX coil 1")
+end
+
+function plot_Fx_for_HSX_coil_1()
+    # Number of evaluation points for the force:
+    neval = 300
+
+    curve = get_curve("hsx", 1)
+    current = 1.0
+    # Data from HsxCoilsNescToFinite.pdf:
+    x_sectional_area = (56.8e-3) * (129.6e-3)
+    aminor = sqrt(x_sectional_area / π)
+    @show aminor
+
+    coil = Coil(curve, current, aminor)
+    regularization = aminor * aminor / sqrt(exp(1))
+
+    n_quadpoints_arr = [100, 1000, 10000]
+    n_quadpointss = length(n_quadpoints_arr)
+    force = zeros((neval, 3))
+    force_circular_approximation = zeros((neval, 3))
+    force_drop_singular_point = zeros((neval, 3, n_quadpointss))
+    ϕ = [2π * (j - 1) / neval for j in 1:neval]
+    for j in 1:neval
+        position = γ(curve, ϕ[j])
+        tangent_vector = tangent(curve, ϕ[j])
+        B = B_filament_adaptive(coil, position; regularization=regularization)
+        force[j, :] = current * cross(tangent_vector, B)
+        force_circular_approximation[j, :] = force_locally_circular_approximation(coil, ϕ[j])
+        for jquadpoints in 1:n_quadpointss
+            n_quadpoints = n_quadpoints_arr[jquadpoints]
+            dϕ = 2π / n_quadpoints
+            B = [0.0, 0.0, 0.0]
+            for k in 2:n_quadpoints
+                ϕ_shifted = ϕ[j] + (k - 1) * dϕ
+                #B += d_B_d_ϕ(coil, ϕ_shifted, position, regularization=regularization)
+                B += d_B_d_ϕ(coil, ϕ_shifted, position, regularization=0)
+            end
+            B *= dϕ
+            force_drop_singular_point[j, :, jquadpoints] = current * cross(tangent_vector, B)
+        end
+    end
+
+    plot(ϕ, force[:, 1], label="filament, adaptive quadrature")
+    #plot!(ϕ, force_circular_approximation[:, 1], label="locally circular approximation")
+    for jquadpoints in 1:n_quadpointss
+        plot!(ϕ, force_drop_singular_point[:, 1, jquadpoints], label="filament, drop singular point, $(n_quadpoints_arr[jquadpoints]) points")
+    end
     xlabel!("ϕ")
     title!("dFₓ/dℓ for HSX coil 1")
 end
