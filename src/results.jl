@@ -288,7 +288,6 @@ function save_high_fidelity_force_for_circular_coil_a_scan()
     
 end
 
-
 function save_high_fidelity_force_for_circular_coil_vary_tol()
     #a_over_R = 10 .^ collect(((-4):(0.5):(-0.5)))
     a_over_R = 10 .^ collect(((-4):(0.5):(-4)))
@@ -492,4 +491,33 @@ function save_high_fidelity_force_for_circular_coil2_tol_scan()
             write(file, "\n")
         end
     end
+end
+
+"""
+This function reproduces a calculation from Siena's candidacy paper.
+"""
+function plot_Fx_for_HSX_coil_1()
+    # Number of evaluation points for the force:
+    neval = 300
+
+    curve = get_curve("hsx", 1)
+    current = 1.0
+    aminor = 0.001
+    coil = Coil(curve, current, aminor)
+    regularization = aminor * aminor / sqrt(exp(1))
+
+    force = zeros((neval, 3))
+    ϕ = [2π * j / neval for j in 1:neval]
+    for j in 1:neval
+        position = γ(curve, ϕ[j])
+        tangent_vector = tangent(curve, ϕ[j])
+        B = B_filament_adaptive(coil, position; regularization=regularization)
+        force[j, :] = current * cross(tangent_vector, B)
+    end
+
+    plot(ϕ, force[:, 1], label="x")
+    #plot!(ϕ, force[:, 2], label="y")
+    #plot!(ϕ, force[:, 3], label="z")
+    xlabel!("ϕ")
+    title!("dFₓ/dℓ for HSX coil 1")
 end

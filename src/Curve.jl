@@ -4,7 +4,7 @@ function tangent(c::Curve, ϕ)
     # This function could be sped up since γ is presently computed but not used.
     data = γ_and_derivative(c, ϕ)
     r_prime = data[:, 2]
-    return r_prime / norm(r_prime)    
+    return r_prime / norm(r_prime)
 end
 
 function Frenet_frame(c::Curve, ϕ)
