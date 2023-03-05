@@ -1,3 +1,63 @@
+"""
+For a circular filament coil, show that the IxB force diverges logarithmically
+if the evaluation point is on the coil and you merely skip the singular point.
+"""
+function plot_non_convergence_skipping_point_circular()
+    # Major radius of coil [meters]
+    R0 = 3.0
+
+    # Minor radius of coil [meters]
+    aminor = 0.01
+
+    # Total current [Amperes]
+    I = 1.0e6
+
+    curve = CurveCircle(R0)
+    coil = Coil(curve, I, aminor)
+    r_eval = [R0, 0, 0]
+
+    # Generate numbers of quadrature points to try:
+    nns = 200
+    ns = [Int(round(10 ^ x)) for x in range(1.0, 4.0, length=nns)]
+
+    force_per_unit_length = zeros(nns)
+    for jn in 1:nns
+        B = B_filament_fixed(coil, r_eval, ns[jn], drop_first_point=true)
+        force_per_unit_length[jn] = I * B[3]
+    end
+
+    x = [minimum(ns), maximum(ns)]
+
+    linewidth = 2
+    #scatter(ns, force_per_unit_length, xscale=:log10)
+    plot(
+        ns,
+        force_per_unit_length,
+        xscale=:log10,
+        label="Skipping singular point",
+        lw=linewidth,
+        size=(600, 500),
+        leg=false,
+        c=:blue,
+        xtickfont=font(10),
+        ytickfont=font(10),
+        xguidefontsize=12,
+        yguidefontsize=12,
+    )
+    plot!(x, analytic_force_per_unit_length(coil) * [1, 1], label="Analytic", c=:red, lw=linewidth)
+    plot!(x, interpolated_force_per_unit_length(coil) * [1, 1], linestyle=:dash, label="5D integral", c=:green, lw=4)
+    xlabel!("Number of grid points for filament calculation")
+    ylabel!("Force per unit length [N / m]")
+    xticks!(10 .^ (1:4))
+    xlims!(10, 1e4)
+    ylims!((0, Inf))
+    title!("Merely skipping the singular grid point for a filament         \ngives a non-convergent result with O(1) error        ")
+    annotate!(25, 2.47e5, text("Analytic", :red))
+    annotate!(30, 2.23e5, text("5D integral", :green))
+    annotate!(180, 0.9e5, text("Filament, skipping singular point", :blue))
+    savefig("circular_coil_force_non_convergence_skipping_point.pdf")
+end
+
 function plot_force_for_HSX()
     coil_num = 2
     curve = get_curve("hsx", coil_num)
@@ -572,4 +632,46 @@ function plot_Fx_for_HSX_coil_1()
     end
     xlabel!("ϕ")
     title!("dFₓ/dℓ for HSX coil 1")
+end
+
+
+function save_high_fidelity_force_for_HSX()
+    reltol = 1e-2
+    abstol = 1e-2
+
+    nϕ = 4
+    ϕs = [2π * (j - 1) / nϕ for j in 1:nϕ]
+    println("Values of ϕ that will be evaluated: ", ϕs)
+
+    curve = get_curve("hsx", 1)
+    curve = CurveCircle(0.5)
+
+    # Total current [Amperes]
+    current = 1.0
+    # Data from HsxCoilsNescToFinite.pdf:
+    x_sectional_area = (56.8e-3) * (129.6e-3)
+    aminor = sqrt(x_sectional_area / π)
+    coil = Coil(curve, current, aminor)
+
+
+    forces = zeros((nϕ, 3))
+    times = similar(ϕs)
+    directory = "/Users/mattland/Box/work23/20230303-01-hifi_force_for_HSX_coil_1/"
+    filename = "20230303-01-hifi_force_for_HSX_coil_1_rtol_$(reltol)_atol_$(abstol)_$(Dates.now()).dat"
+    open(directory * filename, "w") do file
+        write(file, "ϕ, force_x/length, force_y/length, force_z/length, time\n")
+        for jϕ in 1:nϕ
+            ϕ = ϕs[jϕ]
+            println("ϕ = ", ϕ)
+
+            time_data = @timed force = force_finite_thickness(coil, ϕ; reltol=reltol, abstol=abstol)
+            forces[jϕ, :] = force
+            times[jϕ] = time_data.time
+            println("  time: $(time_data.time)  force: $(force)")
+            write(file, "$(ϕ), $(force[1]), $(force[2]), $(force[3]), $(times[jϕ])\n")
+            flush(file)
+        end
+    end
+    println("Finished.")
+    
 end
