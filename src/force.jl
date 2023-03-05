@@ -88,7 +88,14 @@ function force_finite_thickness(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
         cosθ = cos(θ)
         sqrtg = (1 - κ * r * cosθ) * ρ
         r_eval = r0 + r * cosθ * normal + r * sin(θ) * binormal
-        B = B_finite_thickness_normalized(coil, r_eval, reltol=reltol, abstol=abstol)
+        B = B_finite_thickness_normalized(
+            coil,
+            r_eval,
+            reltol=reltol,
+            abstol=abstol,
+            #ϕ_shift=ϕ,
+            #θ_shift=θ,
+        )
         return sqrtg * cross(tangent, B)
     end
 

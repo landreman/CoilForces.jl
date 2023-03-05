@@ -119,7 +119,8 @@ function B_finite_thickness_integrand(coil::Coil, ρ, θ, ϕ, r_eval)
     dℓdϕ, κ, τ, dr, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
     cosθ = cos(θ)
     @. dr += (r * cosθ) * normal + (r * sin(θ)) * binormal - r_eval
-    temp = 1 / (normsq(dr) + 1e-200)
+    temp = 1 / (normsq(dr) + 1e-100)
+    #temp = 1 / (normsq(dr) + 1e-200)
     sqrtg = (1 - κ * r * cosθ) * ρ * dℓdϕ
     return (sqrtg * temp * sqrt(temp)) * cross(dr, tangent)
 end
@@ -129,13 +130,13 @@ Compute the magnetic field vector at a point with specified Cartesian
 coordinates. In this version of the function, the prefactor μ0 I / (4 π^2) is
 not included!
 """
-function B_finite_thickness_normalized(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5)
+function B_finite_thickness_normalized(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
     function Biot_savart_cubature_func(xp)
         return B_finite_thickness_integrand(coil, xp[1], xp[2], xp[3], r_eval)
     end
 
-    Biot_savart_xmin = [0, 0, 0]
-    Biot_savart_xmax = [1, 2π, 2π]
+    Biot_savart_xmin = [0, ϕ_shift, θ_shift]
+    Biot_savart_xmax = [1, ϕ_shift + 2π, θ_shift + 2π]
     #Biot_savart_xmin = [0, -π, -π]
     #Biot_savart_xmax = [a, π, π]
     #Biot_savart_xmin = [0, 0.1 - π, 0.1 - π]
