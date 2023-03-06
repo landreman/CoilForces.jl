@@ -133,3 +133,31 @@ function γ_and_3_derivatives(c::CurveXYZFourier, ϕ)
     
     return c.buffer_34
 end
+
+"""
+Given any Curve, returns a CurveXYZFourier that describes a circle (translated
+and rotated) which is a best-fit approximation to the original curve at a
+desired point ϕ.
+"""
+function fit_circle(curve::Curve, ϕ)
+    _, curvature, _, position, tangent, normal, _ = Frenet_frame(curve, ϕ)
+    sinϕ = sin(ϕ)
+    cosϕ = cos(ϕ)
+
+    # For the formulas that follow, see
+    # 20230303-01 High fidelity force calculation subtracting singularity of best fit circle.lyx
+    return CurveXYZFourier(
+        # xc:
+        [position[1] + normal[1] / curvature, -(sinϕ * tangent[1] + cosϕ * normal[1]) / curvature],
+        # xs:
+        [0, (cosϕ * tangent[1] - sinϕ * normal[1]) / curvature],
+        # yc:
+        [position[2] + normal[2] / curvature, -(sinϕ * tangent[2] + cosϕ * normal[2]) / curvature],
+        # ys:
+        [0, (cosϕ * tangent[2] - sinϕ * normal[2]) / curvature],
+        # zc:
+        [position[3] + normal[3] / curvature, -(sinϕ * tangent[3] + cosϕ * normal[3]) / curvature],
+        # zs:
+        [0, (cosϕ * tangent[3] - sinϕ * normal[3]) / curvature],
+    )
+end

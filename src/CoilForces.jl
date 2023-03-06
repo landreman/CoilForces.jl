@@ -8,7 +8,7 @@ using Dates
 using Interpolations
 
 export μ0, dot, cross, norm, normsq
-export CurveCircle, CurveXYZFourier
+export CurveCircle, CurveXYZFourier, fit_circle
 export γ, γ_and_derivative, γ_and_2_derivatives, γ_and_3_derivatives, tangent, Frenet_frame
 export Coil
 export d_B_d_ϕ, B_filament_fixed, B_filament_adaptive

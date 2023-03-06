@@ -131,3 +131,38 @@ end
         end
     end
 end
+
+@testset "Test fit_circle" begin
+    @testset "Fitting a circle to a circle, all aspects of the Frenet frame should be identical" begin
+        curve1 = CurveCircle(1.7)
+        for ϕ_fit in range(0, 10, length=7)
+            curve2 = fit_circle(curve1, ϕ_fit)
+            for ϕ_test in range(0, 10, length=8)
+                differential_arclength1, curvature1, torsion1, position1, tangent1, normal1, binormal1 = Frenet_frame(curve1, ϕ_test)
+                differential_arclength2, curvature2, torsion2, position2, tangent2, normal2, binormal2 = Frenet_frame(curve2, ϕ_test)
+                @test differential_arclength1 ≈ differential_arclength2
+                @test curvature1 ≈ curvature2
+                @test torsion1 ≈ torsion2
+                @test position1 ≈ position2
+                @test tangent1 ≈ tangent2
+                @test normal1 ≈ normal2
+                @test binormal1 ≈ binormal2
+            end
+        end
+    end
+
+    @testset "Fitting a circle to a general curve, a few quantities should be identical at the fit point" begin
+        curve1 = get_curve("hsx", 1)
+        for ϕ in range(0, 10, length=7)
+            curve2 = fit_circle(curve1, ϕ)
+            differential_arclength1, curvature1, torsion1, position1, tangent1, normal1, binormal1 = Frenet_frame(curve1, ϕ)
+            differential_arclength2, curvature2, torsion2, position2, tangent2, normal2, binormal2 = Frenet_frame(curve2, ϕ)
+            @test curvature1 ≈ curvature2
+            @test position1 ≈ position2
+            @test tangent1 ≈ tangent2
+            @test normal1 ≈ normal2
+            @test binormal1 ≈ binormal2
+        end
+    end
+
+end
