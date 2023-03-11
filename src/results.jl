@@ -304,8 +304,8 @@ end
 function save_high_fidelity_force_for_circular_coil_a_scan()
     #reltol = 3e-7
     #abstol = 3e-7
-    reltol = 1e-7
-    abstol = 1e-7
+    reltol = 1e-6
+    abstol = 1e-6
 
     #a_over_R = 10 .^ collect(((-4):(0.5):(-0.5)))
     #a_over_R = 10 .^ collect(((-2.25):(0.25):(-0.5)))
@@ -324,7 +324,7 @@ function save_high_fidelity_force_for_circular_coil_a_scan()
     high_fidelity_over_analytic_force = similar(a_over_R)
     times = similar(a_over_R)
     for ja in 1:length(a_over_R)
-        a = a_over_R[ja]
+        a = a_over_R[ja] * R0
         println("a = ", a)
         coil = Coil(curve, I, a)
 
@@ -679,3 +679,43 @@ function save_high_fidelity_force_for_HSX()
     println("Finished.")
     
 end
+
+function save_high_fidelity_max_B_for_circular_coil_a_scan()
+    reltol = 1e-8
+    abstol = 1e-8
+
+    a_over_R = 10 .^ collect(((-3.0):(0.0625):(0)))
+    println("Values of a/R that will be evaluated: ", a_over_R)
+
+    # Major radius of coil [meters]
+    R0 = 1.0
+    curve = CurveCircle(R0)
+
+    # Total current [Amperes]
+    I = 1.0
+
+    high_fidelity_max_B = similar(a_over_R)
+    times = similar(a_over_R)
+    for ja in 1:length(a_over_R)
+        a = a_over_R[ja] * R0
+        println("a = ", a)
+        coil = Coil(curve, I, a)
+
+        time_data = @timed modB = hifi_circular_coil_compute_Bz(R0, a, I, R0 - a, 0; reltol=reltol, abstol=abstol)
+        high_fidelity_max_B[ja] = modB
+        times[ja] = time_data.time
+        println("  time: $(time_data.time)  max |B|: $(high_fidelity_max_B[ja])")
+    end
+    @show high_fidelity_max_B
+
+    directory = "/Users/mattland/Box/work23/20230311-01-circular_coil_max_B_convergence/"
+    filename = "circular_coil_max_B_rtol_$(reltol)_atol_$(abstol)_$(Dates.now()).dat"
+    open(directory * filename, "w") do file
+        write(file, "a/R, max |B|, time\n")
+        for ja in 1:length(a_over_R)
+            write(file, "$(a_over_R[ja]), $(high_fidelity_max_B[ja]), $(times[ja])\n")
+        end
+    end
+    
+end
+

@@ -16,13 +16,13 @@ Returns just the z component of the Biot-Savart integrand
 """
 function hifi_circular_coil_Biot_savart_z_integrand(R0, a, x, z, ρ, θ, ϕ)
     r = ρ * a
-    cosϕ = cos(ϕ)
-    sinϕ = sin(ϕ)
-    R = R0 + r * cos(θ)
+    sinϕ, cosϕ = sincos(ϕ)
+    sinθ, cosθ = sincos(θ)
+    R = R0 + r * cosθ
     sqrtg = ρ * R
     xp = R * cosϕ
     yp = R * sinϕ
-    zp = r * sin(θ)
+    zp = r * sinθ
     dx = x - xp
     #dy = y - yp
     dy = -yp  # Since y=0

@@ -68,6 +68,32 @@ using Test
 
         @test Bz_specialized ≈ Bz_general rtol=1e-5
     end
+
+    @testset "Compare the max |B| in the conductor to the analytic result" begin
+        reltol = 1e-6
+        abstol = 1e-6
+    
+        a_over_R = 10 .^ collect(((-3.0):(0.25):(-1.0)))
+        
+        # Major radius of coil [meters]
+        R0 = 3.4
+    
+        # Total current [Amperes]
+        I = 1.1
+    
+        high_fidelity_max_B = similar(a_over_R)
+        for ja in 1:length(a_over_R)
+            a = a_over_R[ja] * R0
+            modB = hifi_circular_coil_compute_Bz(R0, a, I, R0 - a, 0; reltol=reltol, abstol=abstol)
+            high_fidelity_max_B[ja] = modB
+        end
+        analytic_max_B = @. (
+            μ0 * I / (2π * a_over_R * R0) 
+            + μ0 * I / (8π * R0) * (-2 + 6 * log(2) + 2 * log(1 / a_over_R))
+        )
+        @test high_fidelity_max_B ≈ analytic_max_B rtol=3e-3
+    
+    end
 end
 
 @testset "Test force for a high fidelity circular coil" begin
