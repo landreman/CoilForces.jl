@@ -111,6 +111,10 @@ end
         @time force_general = force_finite_thickness(coil, 0, reltol=1e-3, abstol=1e-8)
         @show force_general
         @test force_specialized ≈ force_general[1] rtol=1e-3
+        @time integral, _, force_general_singularity_subtraction = force_finite_thickness_singularity_subtraction(coil, 0, reltol=1e-3, abstol=1e-8)
+        @show force_general_singularity_subtraction
+        @test integral ≈ [0, 0, 0]
+        @test force_specialized ≈ force_general_singularity_subtraction[1] rtol=1e-3
     end
 
     @testset "Compare high fidelity force calculation to reference values for low aspect ratio" begin

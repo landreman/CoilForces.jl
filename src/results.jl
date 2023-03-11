@@ -636,18 +636,18 @@ end
 
 
 function save_high_fidelity_force_for_HSX()
-    reltol = 1e-2
-    abstol = 1e-2
+    reltol = 1e-1
+    abstol = 1e-1
 
     nϕ = 4
     ϕs = [2π * (j - 1) / nϕ for j in 1:nϕ]
     println("Values of ϕ that will be evaluated: ", ϕs)
 
     curve = get_curve("hsx", 1)
-    curve = CurveCircle(0.5)
+    #curve = CurveCircle(0.5)
 
     # Total current [Amperes]
-    current = 1.0
+    current = 150.0e3
     # Data from HsxCoilsNescToFinite.pdf:
     x_sectional_area = (56.8e-3) * (129.6e-3)
     aminor = sqrt(x_sectional_area / π)
@@ -664,7 +664,11 @@ function save_high_fidelity_force_for_HSX()
             ϕ = ϕs[jϕ]
             println("ϕ = ", ϕ)
 
-            time_data = @timed force = force_finite_thickness(coil, ϕ; reltol=reltol, abstol=abstol)
+            #time_data = @timed force = force_finite_thickness(coil, ϕ; reltol=reltol, abstol=abstol)
+            time_data = @timed integrand, force_from_best_fit_circle, force = force_finite_thickness_singularity_subtraction(coil, ϕ; reltol=reltol, abstol=abstol)
+            @show integrand
+            @show force_from_best_fit_circle
+            @show force
             forces[jϕ, :] = force
             times[jϕ] = time_data.time
             println("  time: $(time_data.time)  force: $(force)")

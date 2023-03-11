@@ -78,8 +78,7 @@ Compute the force-per-unit-length for a finite-thickness coil.
 ϕ: Curve parameter at which the force-per-unit-length will be computed.
 """
 function force_finite_thickness(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
-    r0 = γ(coil.curve, ϕ)
-    dℓdϕ, κ, τ, γ0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
+    dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
 
     function force_cubature_func(xp)
         ρ = xp[1]
@@ -112,6 +111,113 @@ function force_finite_thickness(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
     Biot_savart_prefactor = coil.current * μ0 / (4 * π^2)
     force_prefactor = coil.current / π
     return Biot_savart_prefactor * force_prefactor * val
+end
+
+"""
+Compute the force-per-unit-length for a finite-thickness coil. This version of
+the function uses a single call to HCubature to handle all 5 dimensions.
+
+ϕ: Curve parameter at which the force-per-unit-length will be computed.
+"""
+function force_finite_thickness_5D(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
+    dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
+
+    function force_cubature_func(xp)
+        ρ = xp[1]
+        θ = xp[2]
+        ρp = xp[3]
+        θp = xp[4]
+        ϕp = xp[5]
+        dℓdϕp, κp, τp, rp_minus_r, tangentp, normalp, binormalp = Frenet_frame(coil.curve, ϕp)
+        s = ρ * coil.aminor
+        sp = ρp * coil.aminor
+        cosθ = cos(θ)
+        cosθp = cos(θp)
+        @. rp_minus_r += (
+            (sp * cosθp) * normalp
+            + (sp * sin(θp)) * binormalp
+            - (s * cosθ) * normal
+            - (s * sin(θ)) * binormal
+            - r0
+        )
+        temp = 1 / (normsq(rp_minus_r) + 1e-30)
+        return (
+            (ρ * ρp * (1 - κ * s * cosθ) * (1 - κp * sp * cosθp)
+            * dℓdϕp * temp * sqrt(temp))
+            * cross(tangent, cross(rp_minus_r, tangentp))
+        )
+    end
+
+    #force_xmin = [0, 0, 0, 0, 0]
+    #force_xmax = [1, 2π, 1, 2π, 2π]
+    force_xmin = [0, 0, 0, 0, ϕ]
+    force_xmax = [1, 2π, 1, 2π, ϕ + 2π]
+    
+    val, err = hcubature(
+        force_cubature_func, 
+        force_xmin,
+        force_xmax;
+        atol=abstol,
+        rtol=reltol
+    )
+    Biot_savart_prefactor = coil.current * μ0 / (4 * π^2)
+    force_prefactor = coil.current / π
+    return Biot_savart_prefactor * force_prefactor * val
+end
+
+"""
+Compute the force-per-unit-length for a finite-thickness coil. This version uses
+Siena's trick of subtracting and adding the integrand for the best-fit circular coil.
+
+ϕ: Curve parameter at which the force-per-unit-length will be computed.
+"""
+function force_finite_thickness_singularity_subtraction(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
+    dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
+
+    best_fit_circle = fit_circle(coil.curve, ϕ)
+    best_fit_circular_coil = Coil(best_fit_circle, coil.current, coil.aminor)
+
+    function force_cubature_func(xp)
+        ρ = xp[1]
+        θ = xp[2]
+        r = ρ * coil.aminor
+        cosθ = cos(θ)
+        sqrtg = (1 - κ * r * cosθ) * ρ
+        r_eval = r0 + r * cosθ * normal + r * sin(θ) * binormal
+        B = B_finite_thickness_singularity_subtraction(
+            coil,
+            best_fit_circular_coil,
+            r_eval,
+            reltol=reltol,
+            abstol=abstol,
+            #ϕ_shift=ϕ,
+            #θ_shift=θ,
+        )
+        return sqrtg * cross(tangent, B)
+    end
+
+    force_xmin = [0, 0]
+    force_xmax = [1, 2π]
+    
+    val, err = hcubature(
+        force_cubature_func, 
+        force_xmin,
+        force_xmax;
+        atol=abstol,
+        rtol=reltol
+    )
+    Biot_savart_prefactor = coil.current * μ0 / (4 * π^2)
+    force_prefactor = coil.current / π
+    integral = Biot_savart_prefactor * force_prefactor * val
+    force_from_best_fit_circle = (
+        -normal * 
+        interpolated_force_per_unit_length(Coil(CurveCircle(1 / κ), coil.current, coil.aminor))
+    )
+    total = integral + force_from_best_fit_circle
+    @show integral
+    @show force_from_best_fit_circle
+    @show total
+    return integral, force_from_best_fit_circle, total
 end
 
 """

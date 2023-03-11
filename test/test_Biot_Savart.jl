@@ -243,4 +243,14 @@ using Test
             end
         end
     end
+
+    @testset "Compare 2 versions of the finite-thickness Biot-Savart integrand" begin
+        curve = get_curve("hsx", 2)
+        coil = Coil(curve, 1.1e6, 0.05)
+        ρ = 0.6
+        θ = 0.3
+        ϕ = 0.2
+        r_eval = γ(curve, ϕ) + [0.001, 0.002, -0.003]
+        @test CoilForces.B_finite_thickness_integrand(coil, ρ, θ, ϕ, r_eval) ≈ CoilForces.B_finite_thickness_integrand(coil, ρ, cos(θ), sin(θ), ϕ, r_eval)
+    end
 end
