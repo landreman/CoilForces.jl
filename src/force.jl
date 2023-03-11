@@ -84,9 +84,9 @@ function force_finite_thickness(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
         ρ = xp[1]
         θ = xp[2]
         r = ρ * coil.aminor
-        cosθ = cos(θ)
+        sinθ, cosθ = sincos(θ)
         sqrtg = (1 - κ * r * cosθ) * ρ
-        r_eval = r0 + r * cosθ * normal + r * sin(θ) * binormal
+        r_eval = r0 + r * cosθ * normal + r * sinθ * binormal
         B = B_finite_thickness_normalized(
             coil,
             r_eval,
@@ -131,13 +131,13 @@ function force_finite_thickness_5D(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
         dℓdϕp, κp, τp, rp_minus_r, tangentp, normalp, binormalp = Frenet_frame(coil.curve, ϕp)
         s = ρ * coil.aminor
         sp = ρp * coil.aminor
-        cosθ = cos(θ)
-        cosθp = cos(θp)
+        sinθ, cosθ = sincos(θ)
+        sinθp, cosθp = sincos(θp)
         @. rp_minus_r += (
             (sp * cosθp) * normalp
-            + (sp * sin(θp)) * binormalp
+            + (sp * sinθp) * binormalp
             - (s * cosθ) * normal
-            - (s * sin(θ)) * binormal
+            - (s * sinθ) * binormal
             - r0
         )
         temp = 1 / (normsq(rp_minus_r) + 1e-30)
@@ -181,9 +181,9 @@ function force_finite_thickness_singularity_subtraction(coil::Coil, ϕ; reltol=1
         ρ = xp[1]
         θ = xp[2]
         r = ρ * coil.aminor
-        cosθ = cos(θ)
+        sinθ, cosθ = sincos(θ)
         sqrtg = (1 - κ * r * cosθ) * ρ
-        r_eval = r0 + r * cosθ * normal + r * sin(θ) * binormal
+        r_eval = r0 + r * cosθ * normal + r * sinθ * binormal
         B = B_finite_thickness_singularity_subtraction(
             coil,
             best_fit_circular_coil,

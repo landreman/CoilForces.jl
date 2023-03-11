@@ -117,8 +117,8 @@ See 20221016-01 Numerical evaluation of B for finite thickness coil.lyx
 function B_finite_thickness_integrand(coil::Coil, ρ, θ, ϕ, r_eval)
     r = ρ * coil.aminor
     dℓdϕ, κ, τ, dr, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
-    cosθ = cos(θ)
-    @. dr += (r * cosθ) * normal + (r * sin(θ)) * binormal - r_eval
+    sinθ, cosθ = sincos(θ)
+    @. dr += (r * cosθ) * normal + (r * sinθ) * binormal - r_eval
     temp = 1 / (normsq(dr) + 1e-100)
     #temp = 1 / (normsq(dr) + 1e-200)
     sqrtg = (1 - κ * r * cosθ) * ρ * dℓdϕ
@@ -175,8 +175,7 @@ best-fit circular coil is used.
 """
 function B_finite_thickness_singularity_subtraction(coil::Coil, best_fit_circular_coil::Coil, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
     function Biot_savart_cubature_func(xp)
-        cosθ = cos(xp[2])
-        sinθ = sin(xp[2])
+        sinθ, cosθ = sincos(xp[2])
         return (
             B_finite_thickness_integrand(coil, xp[1], cosθ, sinθ, xp[3], r_eval)
             - B_finite_thickness_integrand(best_fit_circular_coil, xp[1], cosθ, sinθ, xp[3], r_eval)

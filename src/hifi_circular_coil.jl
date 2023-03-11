@@ -73,9 +73,10 @@ function hifi_circular_coil_force(R0, a, I; reltol=1e-3, abstol=1e-5)
         ρ = xx[1]
         θ = xx[2]
         r = ρ * a
-        R = R0 + r * cos(θ)
+        sinθ, cosθ = sincos(θ)
+        R = R0 + r * cosθ
         # Evaluate B_z at (x, y, z)=(R, 0, r * sin(θ)):
-        Bz = hifi_circular_coil_compute_Bz_normalized(R0, a, R, r * sin(θ); abstol=abstol, reltol=reltol)
+        Bz = hifi_circular_coil_compute_Bz_normalized(R0, a, R, r * sinθ; abstol=abstol, reltol=reltol)
         return ρ * (R / R0) * Bz
     end
 
