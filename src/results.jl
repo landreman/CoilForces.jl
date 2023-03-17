@@ -58,6 +58,70 @@ function plot_non_convergence_skipping_point_circular()
     savefig("circular_coil_force_non_convergence_skipping_point.pdf")
 end
 
+function plot_non_convergence_skipping_point_circular_with_ours()
+    # Major radius of coil [meters]
+    R0 = 3.0
+
+    # Minor radius of coil [meters]
+    aminor = 0.01
+
+    # Total current [Amperes]
+    I = 1.0e6
+
+    curve = CurveCircle(R0)
+    coil = Coil(curve, I, aminor)
+    r_eval = [R0, 0, 0]
+
+    # Generate numbers of quadrature points to try:
+    nns = 200
+    ns = [Int(round(10 ^ x)) for x in range(0.0, 4.0, length=nns)]
+
+    force_per_unit_length_skipping_point = zeros(nns)
+    force_per_unit_length_ours = zeros(nns)
+    for jn in 1:nns
+        B = B_filament_fixed(coil, r_eval, ns[jn], drop_first_point=true)
+        force_per_unit_length_skipping_point[jn] = I * B[3]
+        B = B_singularity_subtraction_fixed(coil, 0, ns[jn])
+        force_per_unit_length_ours[jn] = I * B[3]
+    end
+    @show force_per_unit_length_ours
+
+    x = [minimum(ns), maximum(ns)]
+
+    linewidth = 2
+    #scatter(ns, force_per_unit_length, xscale=:log10)
+    plot(
+        ns,
+        force_per_unit_length_skipping_point,
+        xscale=:log10,
+        label="Skipping singular point",
+        lw=linewidth,
+        size=(600, 500),
+        leg=false,
+        c=:blue,
+        xtickfont=font(10),
+        ytickfont=font(10),
+        xguidefontsize=12,
+        yguidefontsize=12,
+    )
+    plot!(x, analytic_force_per_unit_length(coil) * [1, 1], label="Analytic", c=:red, lw=5)
+    #plot!(x, interpolated_force_per_unit_length(coil) * [1, 1], linestyle=:dash, label="5D integral", c=:green, lw=3)
+    plot!(x, interpolated_force_per_unit_length(coil) * [1, 1], linestyle=:dash, label="5D integral", c=:green, lw=3)
+    plot!(ns, force_per_unit_length_ours, linestyle=:dash, label="Filament, our method", c=:orange, lw=1)
+    xlabel!("Number of grid points for filament calculation")
+    ylabel!("Force per unit length [N / m]")
+    xticks!(10 .^ (1:4))
+    xlims!(10, 1e4)
+    ylims!((0, Inf))
+    title!("Merely skipping the singular grid point for a filament         \ngives a non-convergent result with O(1) error        ")
+    annotate!(25, 2.47e5, text("Analytic", :red))
+    annotate!(3e3, 2.23e5, text("5D integral", :green))
+    annotate!(30, 2.23e5, text("Our method", :orange))
+    annotate!(180, 0.9e5, text("Filament, skipping singular point", :blue))
+    #savefig("circular_coil_force_non_convergence_skipping_point.pdf")
+end
+
+
 function plot_force_for_HSX()
     coil_num = 2
     curve = get_curve("hsx", coil_num)
