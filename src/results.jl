@@ -744,7 +744,7 @@ function save_high_fidelity_force_for_HSX()
     
 end
 
-function save_high_fidelity_max_B_for_circular_coil_a_scan()
+function save_high_fidelity_Bz_for_circular_coil_a_scan()
     reltol = 1e-8
     abstol = 1e-8
 
@@ -783,3 +783,94 @@ function save_high_fidelity_max_B_for_circular_coil_a_scan()
     
 end
 
+function save_high_fidelity_Bz_for_circular_coil_2D()
+    reltol = 1e-5
+    abstol = 1e-5
+
+    # Resolution for evaluating B
+    nz = 58
+    nx = 59
+
+    # Major radius of coil [meters]
+    R0 = 1.0
+
+    # Min radius of coil [meters]
+    a = 1e-2
+
+    # Total current [Amperes]
+    I = 1.0
+
+    high_fidelity_Bz = zeros(nz, nx)
+    for jz in 1:nz
+        z = ((jz - 1.0) / (nz - 1) - 0.5) * 2 * a
+        println("z: $(z)")
+        for jx = 1:nx
+            x = R0 + ((jx - 1.0) / (nx - 1) - 0.5) * 2 * a
+            Bz = hifi_circular_coil_compute_Bz(R0, a, I, x, z; reltol=reltol, abstol=abstol)
+            high_fidelity_Bz[jz, jx] = Bz
+            println("  x: $(x)  Bz: $(Bz)")
+        end
+    end
+    @show high_fidelity_Bz
+
+    directory = "/Users/mattland/Box/work23/20230317-01-circular_coil_Bz_2d/"
+    filename = "circular_coil_Bz_a_$(a)_rtol_$(reltol)_atol_$(abstol)_$(Dates.now()).dat"
+    open(directory * filename, "w") do file
+        for jz in 1:nz
+            write(file, "$(high_fidelity_Bz[jz, 1])")
+            for jx = 2:nx
+                write(file, ", $(high_fidelity_Bz[jz, jx])")
+            end
+            write(file, "\n")
+        end
+    end
+    
+end
+
+function save_high_fidelity_B_vector_for_circular_coil_2D()
+    reltol = 1e-5
+    abstol = 1e-5
+
+    # Resolution for evaluating B
+    nz = 58
+    nx = 59
+
+    # Major radius of coil [meters]
+    R0 = 1.0
+
+    # Min radius of coil [meters]
+    a = 1e-3
+
+    # Total current [Amperes]
+    I = 1.0
+
+    curve = CurveCircle(R0)
+    coil = Coil(curve, I, a)
+    high_fidelity_B = zeros(nz, nx, 3)
+    for jz in 1:nz
+        z = ((jz - 1.0) / (nz - 1) - 0.5) * 2 * a
+        println("z: $(z)")
+        for jx = 1:nx
+            x = R0 + ((jx - 1.0) / (nx - 1) - 0.5) * 2 * a
+            B = B_finite_thickness(coil, [x, 0, z]; reltol=reltol, abstol=abstol)
+            high_fidelity_B[jz, jx, :] = B
+            println("  x: $(x)  B: $(B)")
+        end
+    end
+    @show high_fidelity_B
+
+    directory = "/Users/mattland/Box/work23/20230317-01-circular_coil_Bz_2d/"
+    filename = "circular_coil_B_vector_a_$(a)_rtol_$(reltol)_atol_$(abstol)_$(Dates.now()).dat"
+    open(directory * filename, "w") do file
+        for jxyz in 1:3
+            for jz in 1:nz
+                write(file, "$(high_fidelity_B[jz, 1, jxyz])")
+                for jx = 2:nx
+                    write(file, ", $(high_fidelity_B[jz, jx, jxyz])")
+                end
+                write(file, "\n")
+            end
+        end
+    end
+    
+end
