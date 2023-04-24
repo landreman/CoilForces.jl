@@ -2,7 +2,7 @@
 For a circular filament coil, show that the IxB force diverges logarithmically
 if the evaluation point is on the coil and you merely skip the singular point.
 """
-function plot_non_convergence_skipping_point_circular()
+function plot_force_non_convergence_skipping_point_circular()
     # Major radius of coil [meters]
     R0 = 3.0
 
@@ -58,7 +58,7 @@ function plot_non_convergence_skipping_point_circular()
     savefig("circular_coil_force_non_convergence_skipping_point.pdf")
 end
 
-function plot_non_convergence_skipping_point_circular_with_ours()
+function plot_force_non_convergence_skipping_point_circular_with_ours()
     # Major radius of coil [meters]
     R0 = 3.0
 
@@ -73,8 +73,8 @@ function plot_non_convergence_skipping_point_circular_with_ours()
     r_eval = [R0, 0, 0]
 
     # Generate numbers of quadrature points to try:
-    nns = 200
-    ns = [Int(round(10 ^ x)) for x in range(0.0, 4.0, length=nns)]
+    nns = 25
+    ns = [Int(round(10 ^ x)) for x in range(0.5, 4.0, length=nns)]
 
     force_per_unit_length_skipping_point = zeros(nns)
     force_per_unit_length_ours = zeros(nns)
@@ -90,35 +90,133 @@ function plot_non_convergence_skipping_point_circular_with_ours()
 
     linewidth = 2
     #scatter(ns, force_per_unit_length, xscale=:log10)
-    plot(
+    scatter(
         ns,
         force_per_unit_length_skipping_point,
         xscale=:log10,
         label="Skipping singular point",
-        lw=linewidth,
         size=(600, 500),
         leg=false,
         c=:blue,
+        ms=3,
+        msw=0,
         xtickfont=font(10),
         ytickfont=font(10),
         xguidefontsize=12,
         yguidefontsize=12,
+        minorgrid=true,
     )
-    plot!(x, analytic_force_per_unit_length(coil) * [1, 1], label="Analytic", c=:red, lw=5)
+    #plot!(
+    #    ns,
+    #    force_per_unit_length_skipping_point,
+    #    lw=linewidth,
+    #    c=:blue,
+    #)
+    plot!(x, analytic_force_per_unit_length(coil) * [1, 1], label="Analytic", c=:darkorange, lw=5)
     #plot!(x, interpolated_force_per_unit_length(coil) * [1, 1], linestyle=:dash, label="5D integral", c=:green, lw=3)
-    plot!(x, interpolated_force_per_unit_length(coil) * [1, 1], linestyle=:dash, label="5D integral", c=:green, lw=3)
-    plot!(ns, force_per_unit_length_ours, linestyle=:dash, label="Filament, our method", c=:orange, lw=1)
-    xlabel!("Number of grid points for filament calculation")
+    #plot!(x, interpolated_force_per_unit_length(coil) * [1, 1], linestyle=:dash, label="5D integral", c=:green, lw=3)
+    plot!(x, interpolated_force_per_unit_length(coil) * [1, 1], label="5D integral", c=:green, lw=2)
+    #plot!(ns, force_per_unit_length_ours, linestyle=:dash, label="Filament, our method", c=:red, lw=1)
+    scatter!(ns, force_per_unit_length_ours, ms=3, msw=0, label="Filament, our method", c=:red, lw=1)
+    xlabel!("Number of grid points for filament calculations")
     ylabel!("Force per unit length [N / m]")
     xticks!(10 .^ (1:4))
-    xlims!(10, 1e4)
+    xlims!(3, 1e4)
     ylims!((0, Inf))
-    title!("Merely skipping the singular grid point for a filament         \ngives a non-convergent result with O(1) error        ")
-    annotate!(25, 2.47e5, text("Analytic", :red))
-    annotate!(3e3, 2.23e5, text("5D integral", :green))
-    annotate!(30, 2.23e5, text("Our method", :orange))
-    annotate!(180, 0.9e5, text("Filament, skipping singular point", :blue))
-    #savefig("circular_coil_force_non_convergence_skipping_point.pdf")
+    #title!("Merely skipping the singular grid point for a filament         \ngives a non-convergent result with O(1) error        ")
+    annotate!(8, 2.47e5, text("Analytic", :darkorange))
+    annotate!(4.0e3, 2.23e5, text("5D integral", :green))
+    annotate!(30, 2.23e5, text("Our method", :red))
+    annotate!(300, 0.9e5, text("Filament, skipping singular point", :blue))
+    savefig("circular_coil_force_non_convergence_skipping_point.pdf")
+end
+
+"""
+For a circular filament coil, show that |B| diverges logarithmically
+if the evaluation point is on the coil and you merely skip the singular point.
+"""
+function plot_modB_non_convergence_skipping_point_circular_with_ours()
+    # Major radius of coil [meters]
+    R0 = 3.0
+
+    # Minor radius of coil [meters]
+    aminor = 0.01
+
+    # Total current [Amperes]
+    I = 1.0e6
+
+    curve = CurveCircle(R0)
+    coil = Coil(curve, I, aminor)
+    r_eval = [R0, 0, 0]
+
+    modB_analytic = (
+        μ0 * I / (2π * aminor)
+        + μ0 * I / (8π * R0) * (6 * log(2.0) - 0.5 + 2 * log(R0 / aminor))
+    )
+
+    @time modB_3d_integral = hifi_circular_coil_compute_Bz(R0, aminor, I, R0 - aminor, 0; reltol=1e-6, abstol=1e-6)
+
+    println("modB_analytic:    ", modB_analytic)
+    println("modB_3d_integral: ", modB_3d_integral)
+    @show relative_difference = (modB_analytic - modB_3d_integral) / (0.5 * (modB_analytic + modB_3d_integral))
+    
+    # Generate numbers of quadrature points to try:
+    nns = 25
+    ns = [Int(round(10 ^ x)) for x in range(0.5, 4.0, length=nns)]
+
+    modB_skipping_point = zeros(nns)
+    modB_ours = zeros(nns)
+    for jn in 1:nns
+        B = B_filament_fixed(coil, r_eval, ns[jn], drop_first_point=true)
+        modB_skipping_point[jn] = B[3]
+        B_filament = B_singularity_subtraction_fixed(coil, 0, ns[jn])
+        # Take the b = e_z component of eq (123)-(125) in 
+        # 20230326-01_B_in_conductor_for_a_noncircular_finite_thickness_coil.pdf
+        # for θ = 0:
+        modB_ours[jn] = (
+            μ0 * I / (2π * aminor)
+            + μ0 * I / (2π * R0) * (0.75 - 1 + 0.5)
+            + B_filament[3]
+        )
+    end
+    @show modB_skipping_point
+
+    x = [minimum(ns), maximum(ns)]
+
+    linewidth = 2
+    scatter(
+        ns,
+        modB_skipping_point,
+        xscale=:log10,
+        yscale=:log10,
+        label="Skipping singular point",
+        size=(600, 500),
+        leg=false,
+        c=:blue,
+        ms=3,
+        msw=0,
+        xtickfont=font(10),
+        ytickfont=font(10),
+        titlefontsize=14,
+        xguidefontsize=12,
+        yguidefontsize=12,
+        titlefonthalign=:left,
+        minorgrid=true,
+    )
+    plot!(x, modB_analytic * [1, 1], label="Analytic", c=:darkorange, lw=5)
+    plot!(x, modB_3d_integral * [1, 1], label="3D integral", c=:green, lw=2)
+    scatter!(ns, modB_ours, ms=3, msw=0, label="Filament, our method", c=:red, lw=1)
+    xlabel!("Number of grid points for filament calculations")
+    ylabel!("maximum |B| in the conductor [T]")
+    xticks!(10 .^ (1:4))
+    xlims!(3, 1e4)
+    ylims!((0.03, 40))
+    title!("Merely skipping the singular grid point for a filament         \ngives a non-convergent result with significant error        ")
+    annotate!(8, 26, text("Analytic", :darkorange))
+    annotate!(2.0e3, 26, text("3D integral", :green))
+    annotate!(60, 15.0, text("Our method", :red))
+    annotate!(220, 0.07, text("Filament, skipping singular point", :blue))
+    savefig("circular_coil_modB_non_convergence_skipping_point.pdf")
 end
 
 
