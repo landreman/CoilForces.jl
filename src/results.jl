@@ -972,3 +972,129 @@ function save_high_fidelity_B_vector_for_circular_coil_2D()
     end
     
 end
+
+function save_high_fidelity_B_vector_for_HSX_coil(;
+    aminor = 0.01,  # Minor radius of coil [meters]
+    I = 1.0e4,  # Total current [Amperes]
+    reltol = 1e-4,
+    abstol = 1e-4,
+    nϕ = 4,
+    nn = 2,
+    nb = 3,
+)
+    curve = get_curve("hsx", 1)
+    curve = CurveCircle(1.0)
+    coil = Coil(curve, I, aminor)
+    high_fidelity_B = zeros(nϕ, nn, nb, 3)
+    for jϕ in 1:nϕ
+        println("Processing jϕ = $(jϕ) of $(nϕ)")
+        ϕ = 2π * (jϕ - 1) / nϕ
+        differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
+        for jn in 1:nn
+            println("  Processing jn = $(jn) of $(nn)")
+            xn = ((jn - 1.0) / (nn - 1) - 0.5) * 2 * aminor
+            for jb = 1:nb
+                xb = ((jb - 1.0) / (nb - 1) - 0.5) * 2 * aminor
+                eval_point = position + xn * normal + xb * binormal
+                #B = B_finite_thickness(coil, eval_point; reltol=reltol, abstol=abstol, ϕ_shift=ϕ)
+                B = B_finite_thickness(coil, eval_point; reltol=reltol, abstol=abstol)
+                high_fidelity_B[jϕ, jn, jb, :] = B
+                println("    jb: $(jb)  B: $(B)")
+            end
+        end
+    end
+    @show high_fidelity_B
+
+    directory = "/Users/mattland/Box/work23/20230426-01-HSX_coil_hifi_B_vector/"
+    datestr = replace("$(Dates.now())", ":" => ".")
+    filename = "HSX_B_a$(aminor)_rtol$(reltol)_atol$(abstol)_nphi$(nϕ)_nn$(nn)_nb$(nb)_$(datestr).dat"
+    open(directory * filename, "w") do file
+        write(file, "aminor, I, reltol, abstol, nϕ, nn, nb\n")
+        write(file, "$(aminor), $(I), $(reltol), $(abstol), $(nϕ), $(nn), $(nb)\n")
+        for jϕ in 1:nϕ
+            for jn in 1:nn
+                for jb = 1:nb
+                    for jxyz in 1:3
+                        write(file, "$(high_fidelity_B[jϕ, jn, jb, jxyz])\n")
+                    end
+                end
+            end
+        end
+    end
+    
+end
+
+function plot_high_fidelity_B_vector_for_HSX_coil(
+    filename="HSX_B_a0.01_rtol1.0e-5_atol1.0e-5_nphi4_nn2_nb3_2023-04-26T13.25.33.056.dat"
+)
+    directory = "/Users/mattland/Box/work23/20230426-01-HSX_coil_hifi_B_vector/"
+    file = open(directory * filename, "r")
+
+    # Read and parse header:
+    line = readline(file)
+    line = readline(file)
+    splitline = split(line, ",")
+    aminor = parse(Float64, splitline[1])
+    I = parse(Float64, splitline[2])
+    nϕ = parse(Int, splitline[5])
+    nn = parse(Int, splitline[6])
+    nb = parse(Int, splitline[7])
+    println("Read nϕ=$(nϕ), nn=$(nn), nb=$(nb)")
+
+    curve = get_curve("hsx", 1)
+    curve = CurveCircle(1.0)
+    coil = Coil(curve, I, aminor)
+
+    # Now read the main B data:
+    high_fidelity_B = zeros(nϕ, nn, nb, 3)
+    for jϕ in 1:nϕ
+        for jn in 1:nn
+            for jb = 1:nb
+                for jxyz in 1:3
+                    high_fidelity_B[jϕ, jn, jb, jxyz] = parse(Float64, readline(file))
+                end
+            end
+        end
+    end
+    close(file)
+    #@show high_fidelity_B
+
+    # Set up grid of subplots
+    n_plots = nϕ * 3
+    n_cols = Int(ceil(1.0 * sqrt(n_plots)))
+    n_rows = Int(ceil(n_plots / n_cols))
+    @show n_plots, n_rows, n_cols
+    xyz = "xyz"
+
+    layout = (n_rows, n_cols)
+    plots = Array{Any, 1}(undef, n_plots)
+    scalefontsizes()
+    scalefontsizes(0.5)
+
+    index = 1
+    for jϕ in 1:nϕ
+        ϕ = 2π * (jϕ - 1) / nϕ
+        differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
+        uplot = [((jn - 1) / (nn - 1) * 2 - 1) * aminor for jn in 1:nn]
+        vplot = [((jb - 1) / (nb - 1) * 2 - 1) * aminor for jb in 1:nb]
+        for jxyz in 1:3
+            plots[index] = contour(uplot, vplot, high_fidelity_B[jϕ, :, :, jxyz]',
+                aspect_ratio = :equal,
+            )
+            index += 1
+            title_str = @sprintf "B%s [Tesla] at ϕ=%.2f" xyz[jxyz] ϕ
+            #title!("B$(xyz[jxyz]) [Tesla] at ϕ=$(ϕ)")
+            title!(title_str)
+            xlabel!("u [meters]")
+            ylabel!("v [meters]")
+            nθ = 150
+            θplot = collect(range(0, 2π, length=nθ))
+            plot!(aminor * cos.(θplot), aminor * sin.(θplot), linewidth=1.5, color=:black, label=nothing)
+        end
+    end
+    @show plots
+    @show layout
+    plot(plots..., layout=layout, dpi=100, size=(1100, 850))
+    savefig("HSX_coil_hifi_B_vector.pdf")
+
+end

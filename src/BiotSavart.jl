@@ -204,7 +204,7 @@ Compute the magnetic field vector at a point with specified Cartesian
 coordinates. In this version of the function, the prefactor μ0 I / (4 π^2) is
 included.
 """
-function B_finite_thickness(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5)
+function B_finite_thickness(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0)
     prefactor = coil.current / (π) * Biot_savart_prefactor
-    return prefactor * B_finite_thickness_normalized(coil, r_eval; reltol=reltol, abstol=abstol)
+    return prefactor * B_finite_thickness_normalized(coil, r_eval; reltol=reltol, abstol=abstol, ϕ_shift=ϕ_shift)
 end

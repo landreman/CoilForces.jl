@@ -58,8 +58,7 @@ function γ_and_derivative(c::CurveXYZFourier, ϕ)
 
     for j in 1:c.n
         m = j - 1
-        cos_mϕ = cos(m * ϕ)
-        sin_mϕ = sin(m * ϕ)
+        sin_mϕ, cos_mϕ = sincos(m * ϕ)
 
         cos_m_factors[j, 1] = cos_mϕ
         cos_m_factors[j, 2] = -m * sin_mϕ
@@ -86,8 +85,7 @@ function γ_and_2_derivatives(c::CurveXYZFourier, ϕ)
 
     for j in 1:c.n
         m = j - 1
-        cos_mϕ = cos(m * ϕ)
-        sin_mϕ = sin(m * ϕ)
+        sin_mϕ, cos_mϕ = sincos(m * ϕ)
 
         cos_m_factors[j, 1] = cos_mϕ
         cos_m_factors[j, 2] = -m * sin_mϕ
@@ -113,8 +111,7 @@ function γ_and_3_derivatives(c::CurveXYZFourier, ϕ)
 
     for j in 1:c.n
         m = j - 1
-        cos_mϕ = cos(m * ϕ)
-        sin_mϕ = sin(m * ϕ)
+        sin_mϕ, cos_mϕ = sincos(m * ϕ)
 
         c.cos_m_factors[j, 1] = cos_mϕ
         c.cos_m_factors[j, 2] = -m * sin_mϕ
@@ -141,8 +138,7 @@ desired point ϕ.
 """
 function fit_circle(curve::Curve, ϕ)
     _, curvature, _, position, tangent, normal, _ = Frenet_frame(curve, ϕ)
-    sinϕ = sin(ϕ)
-    cosϕ = cos(ϕ)
+    sinϕ, cosϕ = sincos(ϕ)
 
     # For the formulas that follow, see
     # 20230303-01 High fidelity force calculation subtracting singularity of best fit circle.lyx
