@@ -983,7 +983,7 @@ function save_high_fidelity_B_vector_for_HSX_coil(;
     nb = 3,
 )
     curve = get_curve("hsx", 1)
-    curve = CurveCircle(1.0)
+    #curve = CurveCircle(1.0)
     coil = Coil(curve, I, aminor)
     high_fidelity_B = zeros(nϕ, nn, nb, 3)
     for jϕ in 1:nϕ
@@ -996,8 +996,10 @@ function save_high_fidelity_B_vector_for_HSX_coil(;
             for jb = 1:nb
                 xb = ((jb - 1.0) / (nb - 1) - 0.5) * 2 * aminor
                 eval_point = position + xn * normal + xb * binormal
-                #B = B_finite_thickness(coil, eval_point; reltol=reltol, abstol=abstol, ϕ_shift=ϕ)
-                B = B_finite_thickness(coil, eval_point; reltol=reltol, abstol=abstol)
+                θ_shift = atan(xb, xn)
+                #θ_shift = atan(xn, xb)
+                B = B_finite_thickness(coil, eval_point; reltol=reltol, abstol=abstol, ϕ_shift=ϕ, θ_shift=θ_shift)
+                #B = B_finite_thickness(coil, eval_point; reltol=reltol, abstol=abstol)
                 high_fidelity_B[jϕ, jn, jb, :] = B
                 println("    jb: $(jb)  B: $(B)")
             end
@@ -1042,7 +1044,7 @@ function plot_high_fidelity_B_vector_for_HSX_coil(
     println("Read nϕ=$(nϕ), nn=$(nn), nb=$(nb)")
 
     curve = get_curve("hsx", 1)
-    curve = CurveCircle(1.0)
+    #curve = CurveCircle(1.0)
     coil = Coil(curve, I, aminor)
     regularization = aminor * aminor / sqrt(ℯ)
 
@@ -1158,6 +1160,7 @@ function plot_high_fidelity_B_vector_for_HSX_coil(
         else
             filename_extension = ""
         end
+        #annotate!((0., 0., directory * filename), subplot=1)
         savefig("HSX_coil_hifi_B_vector" * filename_extension * ".pdf")
     end
 

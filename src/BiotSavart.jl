@@ -119,6 +119,7 @@ function B_finite_thickness_integrand(coil::Coil, ρ, θ, ϕ, r_eval)
     dℓdϕ, κ, τ, dr, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
     sinθ, cosθ = sincos(θ)
     @. dr += (r * cosθ) * normal + (r * sinθ) * binormal - r_eval
+    #temp = 1 / (normsq(dr) + 1e-10)
     temp = 1 / (normsq(dr) + 1e-100)
     #temp = 1 / (normsq(dr) + 1e-200)
     sqrtg = (1 - κ * r * cosθ) * ρ * dℓdϕ
@@ -134,7 +135,7 @@ function B_finite_thickness_integrand(coil::Coil, ρ, cosθ, sinθ, ϕ, r_eval)
     r = ρ * coil.aminor
     dℓdϕ, κ, τ, dr, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
     @. dr += (r * cosθ) * normal + (r * sinθ) * binormal - r_eval
-    #temp = 1 / (normsq(dr) + 1e-3)
+    #temp = 1 / (normsq(dr) + 1e-30)
     temp = 1 / (normsq(dr) + 1e-100)
     #temp = 1 / (normsq(dr) + 1e-200)
     sqrtg = (1 - κ * r * cosθ) * ρ * dℓdϕ
@@ -147,7 +148,12 @@ coordinates. In this version of the function, the prefactor μ0 I / (4 π^2) is
 not included!
 """
 function B_finite_thickness_normalized(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
+    myindex = 0
     function Biot_savart_cubature_func(xp)
+        myindex += 1
+        #if myindex % 10000 == 0
+        #    #println("myindex ", myindex)
+        #end
         return B_finite_thickness_integrand(coil, xp[1], xp[2], xp[3], r_eval)
     end
 
@@ -163,7 +169,11 @@ function B_finite_thickness_normalized(coil::Coil, r_eval; reltol=1e-3, abstol=1
         Biot_savart_xmin,
         Biot_savart_xmax;
         atol=abstol,
-        rtol=reltol)
+        rtol=reltol,
+        maxevals=5000000,
+        initdiv=10,
+    )
+    #print("Number of function evals: ", myindex)
     return val
 end
 
@@ -204,9 +214,9 @@ Compute the magnetic field vector at a point with specified Cartesian
 coordinates. In this version of the function, the prefactor μ0 I / (4 π^2) is
 included.
 """
-function B_finite_thickness(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0)
+function B_finite_thickness(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
     prefactor = coil.current / (π) * Biot_savart_prefactor
-    return prefactor * B_finite_thickness_normalized(coil, r_eval; reltol=reltol, abstol=abstol, ϕ_shift=ϕ_shift)
+    return prefactor * B_finite_thickness_normalized(coil, r_eval; reltol=reltol, abstol=abstol, ϕ_shift=ϕ_shift, θ_shift=θ_shift)
 end
 
 """
