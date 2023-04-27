@@ -253,4 +253,49 @@ using Test
         r_eval = γ(curve, ϕ) + [0.001, 0.002, -0.003]
         @test CoilForces.B_finite_thickness_integrand(coil, ρ, θ, ϕ, r_eval) ≈ CoilForces.B_finite_thickness_integrand(coil, ρ, cos(θ), sin(θ), ϕ, r_eval)
     end
+
+    @testset "For circular coil, compare hifi B vector to filament model" begin
+        aminor = 0.01  # Minor radius of coil [meters]
+        I = 1.0e4  # Total current [Amperes]
+        reltol = 1e-4
+        abstol = 1e-4
+        nϕ = 1
+        nρ = 4
+        nθ = 3
+
+        curve = CurveCircle(1.0)
+        coil = Coil(curve, I, aminor)
+        regularization = aminor * aminor / sqrt(ℯ)
+
+        #####################################################
+        #####################################################
+
+        for jϕ in 1:nϕ
+            #println("Processing jϕ = $(jϕ) of $(nϕ)")
+            ϕ = 2π * (jϕ - 1) / nϕ
+            differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
+            B_regularized = B_filament_adaptive(coil, position; regularization=regularization)
+            for jρ in 1:nρ
+                #println("  Processing jρ = $(jρ) of $(nρ)")
+                ρ = jρ / nρ
+                for jθ = 1:nθ
+                    θ = 2π * (jθ - 1) / nθ
+
+                    # Evaluate vector B from a high fidelity calculation:
+                    eval_point = position + aminor * ρ * cos(θ) * normal + aminor * ρ * sin(θ) * binormal
+                    B_hifi = B_finite_thickness(coil, eval_point; reltol=1e-4, abstol=1e-4)
+
+                    # Now evaluate vector B from the filament model:
+                    B_filament = (
+                        B_regularized
+                        + CoilForces.B_local(coil, curvature, normal, binormal, ρ, θ)
+                    )
+                    #println("    B_hifi:     $(B_hifi)")
+                    #println("    B_filament: $(B_filament)")
+                    @test B_hifi ≈ B_filament atol=1e-12 rtol=3e-4
+                end
+            end
+        end
+
+    end
 end

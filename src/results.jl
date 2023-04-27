@@ -1044,6 +1044,7 @@ function plot_high_fidelity_B_vector_for_HSX_coil(
     curve = get_curve("hsx", 1)
     curve = CurveCircle(1.0)
     coil = Coil(curve, I, aminor)
+    regularization = aminor * aminor / sqrt(ℯ)
 
     # Now read the main B data:
     high_fidelity_B = zeros(nϕ, nn, nb, 3)
@@ -1060,8 +1061,8 @@ function plot_high_fidelity_B_vector_for_HSX_coil(
     #@show high_fidelity_B
 
     # Set up grid of subplots
-    n_plots = nϕ * 3
-    n_cols = Int(ceil(1.0 * sqrt(n_plots)))
+    n_plots = nϕ * 3 * 2
+    n_cols = Int(ceil(0.9 * sqrt(n_plots)))
     n_rows = Int(ceil(n_plots / n_cols))
     @show n_plots, n_rows, n_cols
     xyz = "xyz"
@@ -1071,30 +1072,93 @@ function plot_high_fidelity_B_vector_for_HSX_coil(
     scalefontsizes()
     scalefontsizes(0.5)
 
-    index = 1
-    for jϕ in 1:nϕ
-        ϕ = 2π * (jϕ - 1) / nϕ
-        differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
-        uplot = [((jn - 1) / (nn - 1) * 2 - 1) * aminor for jn in 1:nn]
-        vplot = [((jb - 1) / (nb - 1) * 2 - 1) * aminor for jb in 1:nb]
-        for jxyz in 1:3
-            plots[index] = contour(uplot, vplot, high_fidelity_B[jϕ, :, :, jxyz]',
-                aspect_ratio = :equal,
-            )
-            index += 1
-            title_str = @sprintf "B%s [Tesla] at ϕ=%.2f" xyz[jxyz] ϕ
-            #title!("B$(xyz[jxyz]) [Tesla] at ϕ=$(ϕ)")
-            title!(title_str)
-            xlabel!("u [meters]")
-            ylabel!("v [meters]")
-            nθ = 150
-            θplot = collect(range(0, 2π, length=nθ))
-            plot!(aminor * cos.(θplot), aminor * sin.(θplot), linewidth=1.5, color=:black, label=nothing)
+    Plots.gr_cbar_width[] = 0.005
+
+    uplot = [((jn - 1) / (nn - 1) * 2 - 1) * aminor for jn in 1:nn]
+    vplot = [((jb - 1) / (nb - 1) * 2 - 1) * aminor for jb in 1:nb]
+    u2d = [uplot[jn] for jb in 1:nb, jn in 1:nn]
+    v2d = [vplot[jb] for jb in 1:nb, jn in 1:nn]
+    ρ = @. sqrt(u2d^2 + v2d^2) / aminor
+    θ = atan.(v2d, u2d)
+    @show ρ
+    @show θ
+
+    for subtract_leading_order in [false, true]
+        index = 1
+        for jϕ in 1:nϕ
+            ϕ = 2π * (jϕ - 1) / nϕ
+            differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
+
+            B_regularized = B_filament_adaptive(coil, position; regularization=regularization)
+            @show B_regularized
+            
+            for jxyz in 1:3
+                leading_order_solution = μ0 * I / (2π * aminor * aminor) * (
+                    -normal[jxyz] * v2d + binormal[jxyz] * u2d
+                )
+                for hifi in [true, false]
+                    if hifi
+                        data = high_fidelity_B[jϕ, :, :, jxyz]'
+                    else
+                        data = zeros(nb, nn)
+                        for jb in 1:nb
+                            for jn in 1:nn
+                                data[jb, jn] = (
+                                    B_regularized[jxyz] 
+                                    + CoilForces.B_local(coil, curvature, normal[jxyz], binormal[jxyz], ρ[jb, jn], θ[jb, jn])
+                                )
+                            end
+                        end
+                    end
+                    if subtract_leading_order
+                        data -= leading_order_solution
+                    end
+
+                    # Don't plot data outside the coil - make those points NaN
+                    for jb in 1:nb
+                        for jn in 1:nn
+                            if uplot[jn]^2 + vplot[jb]^2 > aminor^2
+                                data[jb, jn] = NaN
+                            end
+                        end
+                    end
+
+                    maxB = maximum(leading_order_solution)
+                    minB = minimum(leading_order_solution)
+                    if maxB == minB
+                        maxB += 1e-10
+                    end
+                    contour_levels = collect(range(minB, maxB, length=25))
+                    #@show contour_levels
+
+                    plots[index] = contour(uplot, vplot, data,
+                        aspect_ratio = :equal,
+                        #levels=contour_levels,
+                    )
+                    index += 1
+                    title_str = @sprintf "B%s [Tesla] at ϕ=%.2f" xyz[jxyz] ϕ
+                    #title!("B$(xyz[jxyz]) [Tesla] at ϕ=$(ϕ)")
+                    if hifi
+                        title_str = "HiFi " * title_str
+                    else
+                        title_str = "analytic " * title_str
+                    end
+                    title!(title_str)
+                    xlabel!("u [meters]")
+                    ylabel!("v [meters]")
+                    nθ = 150
+                    θplot = collect(range(0, 2π, length=nθ))
+                    plot!(aminor * cos.(θplot), aminor * sin.(θplot), linewidth=1.5, color=:black, label=nothing)
+                end
+            end
         end
+        plot(plots..., layout=layout, dpi=100, size=(1100, 850))
+        if subtract_leading_order
+            filename_extension = "_without_leading_order"
+        else
+            filename_extension = ""
+        end
+        savefig("HSX_coil_hifi_B_vector" * filename_extension * ".pdf")
     end
-    @show plots
-    @show layout
-    plot(plots..., layout=layout, dpi=100, size=(1100, 850))
-    savefig("HSX_coil_hifi_B_vector.pdf")
 
 end
