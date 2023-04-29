@@ -148,21 +148,12 @@ coordinates. In this version of the function, the prefactor μ0 I / (4 π^2) is
 not included!
 """
 function B_finite_thickness_normalized(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
-    myindex = 0
     function Biot_savart_cubature_func(xp)
-        myindex += 1
-        #if myindex % 10000 == 0
-        #    #println("myindex ", myindex)
-        #end
         return B_finite_thickness_integrand(coil, xp[1], xp[2], xp[3], r_eval)
     end
 
-    Biot_savart_xmin = [0, ϕ_shift, θ_shift]
-    Biot_savart_xmax = [1, ϕ_shift + 2π, θ_shift + 2π]
-    #Biot_savart_xmin = [0, -π, -π]
-    #Biot_savart_xmax = [a, π, π]
-    #Biot_savart_xmin = [0, 0.1 - π, 0.1 - π]
-    #Biot_savart_xmax = [a, 0.1 + π, 0.1 + π]
+    Biot_savart_xmin = [0, θ_shift, ϕ_shift]
+    Biot_savart_xmax = [1, θ_shift + 2π, ϕ_shift + 2π]
 
     val, err = hcubature(
         Biot_savart_cubature_func, 
@@ -170,8 +161,8 @@ function B_finite_thickness_normalized(coil::Coil, r_eval; reltol=1e-3, abstol=1
         Biot_savart_xmax;
         atol=abstol,
         rtol=reltol,
-        maxevals=5000000,
-        initdiv=10,
+        #maxevals=5000000,
+        #initdiv=10,
     )
     #print("Number of function evals: ", myindex)
     return val
@@ -192,12 +183,8 @@ function B_finite_thickness_singularity_subtraction(coil::Coil, best_fit_circula
         )
     end
 
-    Biot_savart_xmin = [0, ϕ_shift, θ_shift]
-    Biot_savart_xmax = [1, ϕ_shift + 2π, θ_shift + 2π]
-    #Biot_savart_xmin = [0, -π, -π]
-    #Biot_savart_xmax = [a, π, π]
-    #Biot_savart_xmin = [0, 0.1 - π, 0.1 - π]
-    #Biot_savart_xmax = [a, 0.1 + π, 0.1 + π]
+    Biot_savart_xmin = [0, θ_shift, ϕ_shift]
+    Biot_savart_xmax = [1, θ_shift + 2π, ϕ_shift + 2π]
 
     val, err = hcubature(
         Biot_savart_cubature_func, 

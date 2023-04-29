@@ -92,8 +92,8 @@ function force_finite_thickness(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
             r_eval,
             reltol=reltol,
             abstol=abstol,
-            #ϕ_shift=ϕ,
-            #θ_shift=θ,
+            ϕ_shift=ϕ,
+            θ_shift=θ,
         )
         return sqrtg * cross(tangent, B)
     end
@@ -190,8 +190,8 @@ function force_finite_thickness_singularity_subtraction(coil::Coil, ϕ; reltol=1
             r_eval,
             reltol=reltol,
             abstol=abstol,
-            #ϕ_shift=ϕ,
-            #θ_shift=θ,
+            ϕ_shift=ϕ,
+            θ_shift=θ,
         )
         return sqrtg * cross(tangent, B)
     end

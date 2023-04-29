@@ -998,6 +998,7 @@ function save_high_fidelity_B_vector_for_HSX_coil(;
                 eval_point = position + xn * normal + xb * binormal
                 θ_shift = atan(xb, xn)
                 #θ_shift = atan(xn, xb)
+                #println("      About to evaluate at ", eval_point, " ϕ=", ϕ, " θ_shift=", θ_shift)
                 B = B_finite_thickness(coil, eval_point; reltol=reltol, abstol=abstol, ϕ_shift=ϕ, θ_shift=θ_shift)
                 #B = B_finite_thickness(coil, eval_point; reltol=reltol, abstol=abstol)
                 high_fidelity_B[jϕ, jn, jb, :] = B
@@ -1006,6 +1007,7 @@ function save_high_fidelity_B_vector_for_HSX_coil(;
         end
     end
     @show high_fidelity_B
+    #return
 
     directory = "/Users/mattland/Box/work23/20230426-01-HSX_coil_hifi_B_vector/"
     datestr = replace("$(Dates.now())", ":" => ".")
@@ -1164,4 +1166,68 @@ function plot_high_fidelity_B_vector_for_HSX_coil(
         savefig("HSX_coil_hifi_B_vector" * filename_extension * ".pdf")
     end
 
+end
+
+function debug_stalling_B_integral(;
+    aminor = 0.01,  # Minor radius of coil [meters]
+    I = 1.0e4,  # Total current [Amperes]
+    reltol = 1e-2,
+    abstol = 1e-2,
+)
+    curve = get_curve("hsx", 1)
+    #curve = CurveCircle(1.0)
+    coil = Coil(curve, I, aminor)
+    ϕ = π
+    θ_shift=0.0
+    eval_point = [1.4888650264603631, 0.24140179170087098, -0.2601603251227219]
+    #B = B_finite_thickness_normalized(coil, eval_point; reltol=reltol, abstol=abstol, ϕ_shift=ϕ, θ_shift=θ_shift)
+
+    differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
+    @show eval_point
+    @show position
+    ρ_singular = 1
+    singular_position = position + aminor * ρ_singular * (cos(θ_shift) * normal + sin(θ_shift) * binormal)
+    @show singular_position
+
+    maxevals = 5000
+    source_points = zeros(maxevals, 3)
+    B_evals = zeros(maxevals, 3)
+
+    # Next comes a copy of B_finite_thickness_normalized()
+    myindex = 0
+    function Biot_savart_cubature_func(xp)
+        myindex += 1
+        if myindex % 10000 == 0
+            println("myindex ", myindex)
+        end
+        source_points[myindex, :] = xp
+        B_evals[myindex, :] = B_finite_thickness_integrand(coil, xp[1], xp[2], xp[3], eval_point)
+        return B_evals[myindex, :]
+    end
+
+    ϕ_shift = ϕ
+    Biot_savart_xmin = [0, θ_shift, ϕ_shift]
+    Biot_savart_xmax = [1, θ_shift + 2π, ϕ_shift + 2π]
+
+    val, err = hcubature(
+        Biot_savart_cubature_func, 
+        Biot_savart_xmin,
+        Biot_savart_xmax;
+        atol=abstol,
+        rtol=reltol,
+        maxevals=maxevals ÷ 2,
+        #initdiv=10,
+    )
+    #print("Number of function evals: ", myindex)
+    start_index = 1
+    end_index = myindex
+    p1 = plot(source_points[start_index:end_index, 1], ylabel="ρ", label=false)
+    p2 = plot(source_points[start_index:end_index, 2], ylabel="θ", label=false)
+    p3 = plot(source_points[start_index:end_index, 3], ylabel="ϕ", label=false)
+    p4 = plot(abs.(B_evals[start_index:end_index, 1]), ylabel="Bx", label=false, yscale=:log10)
+    p5 = plot(abs.(B_evals[start_index:end_index, 2]), ylabel="By", label=false, yscale=:log10)
+    p6 = plot(abs.(B_evals[start_index:end_index, 3]), ylabel="Bz", label=false, yscale=:log10)
+    #return val
+    #plot(p1, p2, p3, layout=(3, 1))
+    plot(p1, p2, p3, p4, p5, p6, layout=(6, 1), dpi=100, size=(700, 600))
 end
