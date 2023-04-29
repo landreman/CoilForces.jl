@@ -251,7 +251,7 @@ using Test
         θ = 0.3
         ϕ = 0.2
         r_eval = γ(curve, ϕ) + [0.001, 0.002, -0.003]
-        @test CoilForces.B_finite_thickness_integrand(coil, ρ, θ, ϕ, r_eval) ≈ CoilForces.B_finite_thickness_integrand(coil, ρ, cos(θ), sin(θ), ϕ, r_eval)
+        @test CoilForces.B_finite_thickness_integrand(coil, ρ, θ, ϕ, r_eval) ≈ CoilForces.B_finite_thickness_integrand_sincos(coil, ρ, cos(θ), sin(θ), ϕ, r_eval)
     end
 
     @testset "For circular coil, compare hifi B vector to filament model" begin
