@@ -797,11 +797,12 @@ function plot_Fx_for_HSX_coil_1()
 end
 
 
-function save_high_fidelity_force_for_HSX()
-    reltol = 1e-1
-    abstol = 1e-1
-
-    nϕ = 4
+function save_high_fidelity_force_for_HSX(;
+    aminor = nothing,
+    nϕ = 4,
+    reltol = 1e-1,
+    abstol = 1e-1,
+)
     ϕs = [2π * (j - 1) / nϕ for j in 1:nϕ]
     println("Values of ϕ that will be evaluated: ", ϕs)
 
@@ -812,34 +813,163 @@ function save_high_fidelity_force_for_HSX()
     current = 150.0e3
     # Data from HsxCoilsNescToFinite.pdf:
     x_sectional_area = (56.8e-3) * (129.6e-3)
-    aminor = sqrt(x_sectional_area / π)
+    if aminor === nothing
+        aminor = sqrt(x_sectional_area / π)
+    end
     coil = Coil(curve, current, aminor)
-
+    @show aminor
 
     forces = zeros((nϕ, 3))
+    forces_with_Siena_trick = zeros((nϕ, 3))
     times = similar(ϕs)
-    directory = "/Users/mattland/Box/work23/20230303-01-hifi_force_for_HSX_coil_1/"
-    filename = "20230303-01-hifi_force_for_HSX_coil_1_rtol_$(reltol)_atol_$(abstol)_$(Dates.now()).dat"
+    times_with_Siena_trick = similar(ϕs)
+    directory = "/Users/mattland/Box/work23/20230429-01_hifi_force_for_HSX_coil_1/"
+    datestr = replace("$(Dates.now())", ":" => ".")
+    filename = "20230429-01-hifi_force_for_HSX_coil_1_a$(aminor)_nphi$(nϕ)_rtol$(reltol)_atol$(abstol)_$(datestr).dat"
     open(directory * filename, "w") do file
-        write(file, "ϕ, force_x/length, force_y/length, force_z/length, time\n")
+        write(file, "ϕ, force_x/length, force_y/length, force_z/length, time, force_x/length, force_y/length, force_z/length, time\n")
         for jϕ in 1:nϕ
             ϕ = ϕs[jϕ]
             println("ϕ = ", ϕ)
 
-            #time_data = @timed force = force_finite_thickness(coil, ϕ; reltol=reltol, abstol=abstol)
-            time_data = @timed integrand, force_from_best_fit_circle, force = force_finite_thickness_singularity_subtraction(coil, ϕ; reltol=reltol, abstol=abstol)
+            println("  Without Siena's trick:")
+            time_data = @timed force = force_finite_thickness(coil, ϕ; reltol=reltol, abstol=abstol)
+            @show force
+            @show time_data.time
+            println("  With Siena's trick:")
+            time_data_with_Siena_trick = @timed integrand, force_from_best_fit_circle, force_with_Siena_trick = force_finite_thickness_singularity_subtraction(coil, ϕ; reltol=reltol, abstol=abstol)
             @show integrand
             @show force_from_best_fit_circle
-            @show force
+            @show force_with_Siena_trick
+            @show time_data_with_Siena_trick.time
             forces[jϕ, :] = force
             times[jϕ] = time_data.time
-            println("  time: $(time_data.time)  force: $(force)")
-            write(file, "$(ϕ), $(force[1]), $(force[2]), $(force[3]), $(times[jϕ])\n")
+            forces_with_Siena_trick[jϕ, :] = force_with_Siena_trick
+            times_with_Siena_trick[jϕ] = time_data_with_Siena_trick.time
+            #println("  time: $(time_data.time)  force: $(force)")
+            write(file, "$(ϕ), $(force[1]), $(force[2]), $(force[3]), $(times[jϕ]), $(force_with_Siena_trick[1]), $(force_with_Siena_trick[2]), $(force_with_Siena_trick[3]), $(times_with_Siena_trick[jϕ])\n")
             flush(file)
         end
     end
     println("Finished.")
     
+end
+
+function save_high_fidelity_force_for_HSX_parallel(;
+    aminor = nothing,
+    nϕ = 4,
+    reltol = 1e-1,
+    abstol = 1e-1,
+)
+    ϕs = [2π * (j - 1) / nϕ for j in 1:nϕ]
+    println("Values of ϕ that will be evaluated: ", ϕs)
+
+    #curve = CurveCircle(0.5)
+
+    # Total current [Amperes]
+    current = 150.0e3
+    # Data from HsxCoilsNescToFinite.pdf:
+    x_sectional_area = (56.8e-3) * (129.6e-3)
+    if aminor === nothing
+        aminor = sqrt(x_sectional_area / π)
+    end
+    @show aminor
+
+    forces = zeros((nϕ, 3))
+    times = similar(ϕs)
+    println("Number of threads: ", Threads.nthreads())
+    directory = "/Users/mattland/Box/work23/20230429-01_hifi_force_for_HSX_coil_1/"
+    datestr = replace("$(Dates.now())", ":" => ".")
+    filename = "20230429-01-hifi_force_for_HSX_coil_1_a$(aminor)_nphi$(nϕ)_rtol$(reltol)_atol$(abstol)_$(datestr).dat"
+    Threads.@threads for jϕ in 1:nϕ
+        # CurveXYZFourier has buffers that need to have distinct contents in
+        # different threads, so we define the curve here inside the loop, where
+        # all new variables are distinct for each thread.
+        curve = get_curve("hsx", 1)
+        coil = Coil(curve, current, aminor)
+        ϕ = ϕs[jϕ]
+        println("Thread $(Threads.threadid()) is handling jϕ = $(jϕ) of $(nϕ): ϕ = ", ϕ)
+        
+        time_data = @timed force = force_finite_thickness(coil, ϕ; reltol=reltol, abstol=abstol)
+        forces[jϕ, :] = force
+        times[jϕ] = time_data.time
+    end
+    @show forces
+    @show times
+    open(directory * filename, "w") do file
+        write(file, "ϕ, force_x/length, force_y/length, force_z/length, time\n")
+        for jϕ in 1:nϕ
+            write(file, "$(ϕs[jϕ]), $(forces[jϕ, 1]), $(forces[jϕ, 2]), $(forces[jϕ, 3]), $(times[jϕ])\n")
+        end
+    end
+    println("Finished.")
+    
+end
+
+function plot_high_fidelity_force_for_HSX_coil(filename)
+    directory = "/Users/mattland/Box/work23/20230429-01_hifi_force_for_HSX_coil_1/"
+    f = CSV.File(directory * filename)
+    ϕ = f.ϕ
+
+    p1 = plot(ϕ, f[" force_x/length"], label="direct")
+    plot!(ϕ, f[" force_x/length_1"], linestyle=:dash, label="Siena")
+    xlabel!("ϕ")
+    ylabel!("force_x/length")
+
+    p2 = plot(ϕ, f[" force_y/length"], label="direct")
+    plot!(ϕ, f[" force_y/length_1"], linestyle=:dash, label="Siena")
+    xlabel!("ϕ")
+    ylabel!("force_y/length")
+    
+    p3 = plot(ϕ, f[" force_z/length"], label="direct")
+    plot!(ϕ, f[" force_z/length_1"], linestyle=:dash, label="Siena")
+    xlabel!("ϕ")
+    ylabel!("force_z/length")
+    
+    p4 = plot(ϕ, f[" time"], label="direct")
+    plot!(ϕ, f[" time_1"], linestyle=:dash, label="Siena")
+    xlabel!("ϕ")
+    ylabel!("time")
+    
+    plot(p1, p2, p3, p4, layout=(2, 2), dpi=100, size=(700, 600))
+
+end
+
+function plot_high_fidelity_force_for_HSX_coil_compare(filenames)
+    directory = "/Users/mattland/Box/work23/20230429-01_hifi_force_for_HSX_coil_1/"
+    fs = [CSV.File(directory * filename) for filename in filenames]
+    n = length(fs)
+
+    p1 = plot()
+    for j in 1:n 
+        plot!(fs[j].ϕ, fs[j][" force_x/length"], label=false)
+    end
+    xlabel!("ϕ")
+    ylabel!("force_x/length")
+
+    p2 = plot()
+    for j in 1:n 
+        plot!(fs[j].ϕ, fs[j][" force_y/length"], label=filenames[j])
+    end
+    xlabel!("ϕ")
+    ylabel!("force_y/length")
+    
+    p3 = plot()
+    for j in 1:n 
+        plot!(fs[j].ϕ, fs[j][" force_z/length"], label=false)
+    end
+    xlabel!("ϕ")
+    ylabel!("force_z/length")
+    
+    p4 = plot()
+    for j in 1:n 
+        plot!(fs[j].ϕ, fs[j][" time"], label=false, yscale=:log10)
+    end
+    xlabel!("ϕ")
+    ylabel!("time")
+    
+    plot(p1, p2, p3, p4, layout=(2, 2), dpi=100, size=(700, 600))
+
 end
 
 function save_high_fidelity_Bz_for_circular_coil_a_scan()
@@ -912,7 +1042,8 @@ function save_high_fidelity_Bz_for_circular_coil_2D()
     @show high_fidelity_Bz
 
     directory = "/Users/mattland/Box/work23/20230317-01-circular_coil_Bz_2d/"
-    filename = "circular_coil_Bz_a_$(a)_rtol_$(reltol)_atol_$(abstol)_$(Dates.now()).dat"
+    datestr = replace("$(Dates.now())", ":" => ".")
+    filename = "circular_coil_Bz_a_$(a)_rtol_$(reltol)_atol_$(abstol)_$(datestr).dat"
     open(directory * filename, "w") do file
         for jz in 1:nz
             write(file, "$(high_fidelity_Bz[jz, 1])")

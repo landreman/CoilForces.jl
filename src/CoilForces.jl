@@ -6,6 +6,7 @@ using Plots
 using Printf
 using Dates
 using Interpolations
+using CSV
 
 export μ0, dot, cross, norm, normsq
 export CurveCircle, CurveXYZFourier, fit_circle
