@@ -166,3 +166,17 @@ end
     end
 
 end
+
+@testset "Test curve utilities" begin
+    @testset "Test curve_length for a circle" begin
+        R = 17.2
+        c = CurveCircle(R)
+        @test curve_length(c) ≈ 2π * R
+    end
+
+    @testset "Test curve_length for an HSX coil" begin
+        c = get_curve("hsx", 1)
+        # Compare to a reference value from simsopt:
+        @test curve_length(c) ≈ 2.054316451786527
+    end
+end

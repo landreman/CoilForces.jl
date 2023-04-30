@@ -10,7 +10,7 @@ using CSV
 
 export μ0, dot, cross, norm, normsq
 export CurveCircle, CurveXYZFourier, fit_circle
-export γ, γ_and_derivative, γ_and_2_derivatives, γ_and_3_derivatives, tangent, Frenet_frame
+export γ, γ_and_derivative, γ_and_2_derivatives, γ_and_3_derivatives, tangent, Frenet_frame, curve_length
 export Coil
 export d_B_d_ϕ, B_filament_fixed, B_filament_adaptive
 export d_B_d_ϕ_singularity_subtracted, B_singularity_subtraction_fixed

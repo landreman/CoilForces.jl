@@ -51,3 +51,20 @@ function curvature(c::Curve, ϕ)
                 / (norm_r_prime * norm_r_prime * norm_r_prime))
     return differential_arclength, curvature
 end
+
+function curve_length(c::Curve)
+    function length_integrand(ϕ)
+        data = γ_and_derivative(c, ϕ)
+        r_prime = @view data[:, 2]
+        return norm(r_prime)
+    end
+
+    val, err = hquadrature(
+        length_integrand, 
+        0,
+        2π;
+        atol=1e-12,
+        rtol=1e-12
+    )
+    return val
+end
