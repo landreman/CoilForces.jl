@@ -857,6 +857,7 @@ end
 
 function save_high_fidelity_force_for_HSX_parallel(;
     aminor = nothing,
+    current = 150.0e3,
     nϕ = 4,
     reltol = 1e-1,
     abstol = 1e-1,
@@ -866,8 +867,6 @@ function save_high_fidelity_force_for_HSX_parallel(;
 
     #curve = CurveCircle(0.5)
 
-    # Total current [Amperes]
-    current = 150.0e3
     # Data from HsxCoilsNescToFinite.pdf:
     x_sectional_area = (56.8e-3) * (129.6e-3)
     if aminor === nothing
@@ -1361,4 +1360,24 @@ function debug_stalling_B_integral(;
     #return val
     #plot(p1, p2, p3, layout=(3, 1))
     plot(p1, p2, p3, p4, p5, p6, layout=(6, 1), dpi=100, size=(700, 600))
+end
+
+function reproduce_Sienas_plot_of_locally_circular_approx()
+    curve = get_curve("hsx", 1)
+    current = 1e6
+    R_eff = curve_length(curve) / (2π)
+    aminor = 0.01 * R_eff
+    @show aminor
+    coil = Coil(curve, current, aminor)
+    nϕ = 200
+    ϕ = [(jϕ - 1) * 2π / nϕ for jϕ in 1:nϕ]
+    forces = zeros(nϕ, 3)
+    for j in 1:nϕ
+        forces[j, :] = force_locally_circular_approximation(coil, ϕ[j])
+    end
+
+    plot(ϕ, forces[:, 1], label=false, color=:darkorange, dpi=100, size=(510, 400))
+    xlabel!("ϕ")
+    title!("dFₓ/dℓ for HSX coil 1, Garren's locally circular approximation")
+    ylims!(-3.7e6, 2.25e6)
 end
