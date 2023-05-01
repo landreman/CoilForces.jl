@@ -16,6 +16,7 @@ PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
 
 [compat]
+CSV = "0.10"
 Interpolations = "0.14"
 Plots = "1"
 PyCall = "1"
