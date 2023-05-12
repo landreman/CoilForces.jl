@@ -39,9 +39,9 @@ end
 
 
 function curvature(c::Curve, ϕ)
-    r_prime = dγdϕ(c, γ)
-    r_prime_prime = d2γdϕ2(c, γ)
-    r_prime_prime_prime = d3γdϕ3(c, γ)
+    data = γ_and_2_derivatives(c, ϕ)
+    r_prime = @view data[:, 2]
+    r_prime_prime = @view data[:, 3]
 
     norm_r_prime = norm(r_prime)
     differential_arclength = norm_r_prime

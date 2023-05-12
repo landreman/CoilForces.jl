@@ -54,6 +54,10 @@ end
             @test tangent ≈ [-sin(ϕ), cos(ϕ), 0]
             @test normal ≈ [-cos(ϕ), -sin(ϕ), 0]
             @test binormal ≈ [0, 0, 1]
+
+            dℓdϕ, κ = curvature(c, ϕ)
+            @test dℓdϕ ≈ R0
+            @test κ ≈ 1 / R0
         end
     end
 
@@ -128,6 +132,11 @@ end
             @test tangent ≈ tangent_python[j, :]
             @test normal ≈ normal_python[j, :]
             @test binormal ≈ binormal_python[j, :] 
+
+            dℓdϕ2, κ2 = curvature(c, ϕ[j])
+            @test κ2 ≈ κ_python[j]
+            @test κ2 ≈ κ
+            @test dℓdϕ2 ≈ dℓdϕ
         end
     end
 end

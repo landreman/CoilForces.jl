@@ -251,17 +251,18 @@ function plot_force_for_HSX()
 end
 
 function plot_integrand()
-    coil_num = 2
+    coil_num = 1
     curve = get_curve("hsx", coil_num)
     # curve = CurveCircle(2.2)
 
     current = -1.5e5
 
     # minor radius of conductor:
-    a = 0.001
+    a = 0.01
 
     # point at which to evaluate the force:
     ϕ0 = 0.0
+    ϕ0 = 2π/5
 
     coil = Coil(curve, current, a)
     δ = a * a / sqrt(ℯ)
@@ -276,10 +277,13 @@ function plot_integrand()
     smoothed_integrand = zeros(nϕ, 3)
     smoother_integrand = zeros(nϕ, 3)
     smoothest_integrand = zeros(nϕ, 3)
-    r_eval = γ(curve, ϕ0)
-    r_prime = dγdϕ(curve, ϕ0)
-    r_prime_prime = d2γdϕ2(curve, ϕ0)
-    r_prime_prime_prime = d3γdϕ3(curve, ϕ0)
+
+    data = γ_and_3_derivatives(curve, ϕ0)
+    r_eval = @view data[:, 1]
+    r_prime = @view data[:, 2]
+    r_prime_prime = @view data[:, 3]
+    r_prime_prime_prime = @view data[:, 4]
+
     dot_factor = dot(r_prime, r_prime_prime)
     dℓdϕ_squared = normsq(r_prime)
     for j in 1:nϕ
@@ -314,10 +318,10 @@ function plot_integrand()
     #plot!(ϕ, integrand[:, 2], label="y")
     #plot!(ϕ, integrand[:, 3], label="z")
     for j in 1:3
-        #plot!(ϕp, integrand[:, j], label=xyz[j:j])
-        #plot!(ϕp, smoothed_integrand[:, j], label="smoothed, " * xyz[j:j])
-        plot!(ϕp, smoother_integrand[:, j], label="smoother, " * xyz[j:j], ls=:dot)
-        plot!(ϕp, smoothest_integrand[:, j], label="smoothest, " * xyz[j:j], ls=:dash)
+        plot!(ϕp, integrand[:, j], label=xyz[j:j])
+        plot!(ϕp, smoothed_integrand[:, j], label="smoothed, " * xyz[j:j])
+        #plot!(ϕp, smoother_integrand[:, j], label="smoother, " * xyz[j:j], ls=:dot)
+        #plot!(ϕp, smoothest_integrand[:, j], label="smoothest, " * xyz[j:j], ls=:dash)
     end
     xlabel!("Coil parameter ϕ")
     title!("Regularized Biot-Savart integrand for HSX coil $(coil_num) at ϕ=$(ϕ0)")
@@ -325,10 +329,11 @@ function plot_integrand()
 end
 
 function plot_force_convergence_single()
-    coil_num = 2
+    coil_num = 1
 
     # point at which to evaluate the force:
     ϕ0 = 0.0
+    #ϕ0 = 2π/5
 
     curve = get_curve("hsx", coil_num)
     # curve = CurveCircle(2.2)
@@ -336,7 +341,7 @@ function plot_force_convergence_single()
     current = -1.5e5
 
     # minor radius of conductor:
-    a = 0.001
+    a = 0.01
 
     coil = Coil(curve, current, a)
     δ = a * a / sqrt(ℯ)
@@ -353,14 +358,82 @@ function plot_force_convergence_single()
         B = B_filament_fixed(coil, r_eval, ns[jn], regularization=δ)
         force_per_unit_length[jn] = current * norm(cross(tangent0, B))
 
-        B = B_singularity_subtraction_fixed(coil, ϕ0, ns[jn], δ)
+        B = B_singularity_subtraction_fixed(coil, ϕ0, ns[jn])
         force_per_unit_length_singularity_subtraction[jn] = current * norm(cross(tangent0, B))
   end
 
-    scatter(ns, force_per_unit_length, xscale=:log10, label="original")
-    scatter!(ns, force_per_unit_length_singularity_subtraction, label="singularity subtraction")
+    scatter(ns, abs.(force_per_unit_length), xscale=:log10, label="original")
+    scatter!(ns, abs.(force_per_unit_length_singularity_subtraction), label="singularity subtraction")
     xlabel!("number of quadrature points")
-    ylabel!("Force per unit length [N / m]")
+    title!("Force per unit length [N / m]")
+end
+
+function plot_force_convergence_single_for_talk()
+    coil_num = 1
+
+    # point at which to evaluate the force:
+    ϕ0 = 0.0
+    #ϕ0 = 4 * 2π/5
+
+    curve = get_curve("hsx", coil_num)
+    # curve = CurveCircle(2.2)
+
+    current = -1.5e5
+
+    # minor radius of conductor:
+    a = 0.01
+
+    coil = Coil(curve, current, a)
+    δ = a * a / sqrt(ℯ)
+
+    # Generate numbers of quadrature points to try:
+    nns = 60
+    ns = [Int(round(10 ^ x)) for x in range(1.0, 3.0, length=nns)]
+
+    r_eval = γ(curve, ϕ0)
+    tangent0 = tangent(curve, ϕ0)
+    force_per_unit_length = zeros(nns)
+    force_per_unit_length_singularity_subtraction = zeros(nns)
+    for jn in 1:nns
+        B = B_filament_fixed(coil, r_eval, ns[jn], regularization=δ)
+        force_per_unit_length[jn] = current * norm(cross(tangent0, B))
+        #force_per_unit_length[jn] = current * cross(tangent0, B)[1]
+
+        B = B_singularity_subtraction_fixed(coil, ϕ0, ns[jn])
+        force_per_unit_length_singularity_subtraction[jn] = current * norm(cross(tangent0, B))
+        #force_per_unit_length_singularity_subtraction[jn] = current * cross(tangent0, B)[1]
+    end
+
+    scalefontsizes()
+    scalefontsizes(1.3)
+
+    factor = 1e-3
+    marker_size = 3.5
+    scatter(
+        ns, 
+        abs.(force_per_unit_length) * factor, 
+        xscale=:log10, 
+        ms=marker_size,
+        msw=0,
+        #label="original",
+        label=false,
+        framestyle=:box,
+        titlefontsize=15,
+        minorgrid=true,
+    )
+    scatter!(
+        ns, 
+        abs.(force_per_unit_length_singularity_subtraction) * factor, 
+        #label="singularity subtraction",
+        label=false,
+        ms=marker_size,
+        msw=0,
+    )
+    xlabel!("Number of quadrature points")
+    title!("Force per unit length |dF/dℓ| [kN / m]")
+    ylims!(0, 60)
+    xlims!(10, 1e3)
+    savefig("/Users/mattland/Box/work23/20230511-01-HSX_force_convergence_vs_nquadpoints.pdf")
 end
 
 function plot_force_convergence_grid()
@@ -865,8 +938,6 @@ function save_high_fidelity_force_for_HSX_parallel(;
     ϕs = [2π * (j - 1) / nϕ for j in 1:nϕ]
     println("Values of ϕ that will be evaluated: ", ϕs)
 
-    #curve = CurveCircle(0.5)
-
     # Data from HsxCoilsNescToFinite.pdf:
     x_sectional_area = (56.8e-3) * (129.6e-3)
     if aminor === nothing
@@ -939,6 +1010,9 @@ function plot_high_fidelity_force_for_HSX_coil_compare(filenames)
     fs = [CSV.File(directory * filename) for filename in filenames]
     n = length(fs)
 
+    scalefontsizes()
+    scalefontsizes(0.5)
+
     p1 = plot()
     for j in 1:n 
         plot!(fs[j].ϕ, fs[j][" force_x/length"], label=false)
@@ -948,7 +1022,7 @@ function plot_high_fidelity_force_for_HSX_coil_compare(filenames)
 
     p2 = plot()
     for j in 1:n 
-        plot!(fs[j].ϕ, fs[j][" force_y/length"], label=filenames[j])
+        plot!(fs[j].ϕ, fs[j][" force_y/length"], label=false)
     end
     xlabel!("ϕ")
     ylabel!("force_y/length")
@@ -962,7 +1036,7 @@ function plot_high_fidelity_force_for_HSX_coil_compare(filenames)
     
     p4 = plot()
     for j in 1:n 
-        plot!(fs[j].ϕ, fs[j][" time"], label=false, yscale=:log10)
+        plot!(fs[j].ϕ, fs[j][" time"], label=filenames[j], yscale=:log10)
     end
     xlabel!("ϕ")
     ylabel!("time")
@@ -1298,6 +1372,180 @@ function plot_high_fidelity_B_vector_for_HSX_coil(
 
 end
 
+function plot_high_fidelity_B_vector_for_HSX_coil_for_talk(
+    filename="HSX_B_a0.01_rtol0.001_atol0.001_nphi2_nn30_nb31_2023-04-27T09.40.25.165.dat"
+)
+    directory = "/Users/mattland/Box/work23/20230426-01-HSX_coil_hifi_B_vector/"
+    file = open(directory * filename, "r")
+
+    # Read and parse header:
+    line = readline(file)
+    line = readline(file)
+    splitline = split(line, ",")
+    aminor = parse(Float64, splitline[1])
+    I = parse(Float64, splitline[2])
+    nϕ = parse(Int, splitline[5])
+    nn = parse(Int, splitline[6])
+    nb = parse(Int, splitline[7])
+    println("Read nϕ=$(nϕ), nn=$(nn), nb=$(nb)")
+
+    curve = get_curve("hsx", 1)
+    #curve = CurveCircle(1.0)
+    coil = Coil(curve, I, aminor)
+    regularization = aminor * aminor / sqrt(ℯ)
+
+    # Now read the main B data:
+    high_fidelity_B = zeros(nϕ, nn, nb, 3)
+    for jϕ in 1:nϕ
+        for jn in 1:nn
+            for jb = 1:nb
+                for jxyz in 1:3
+                    high_fidelity_B[jϕ, jn, jb, jxyz] = parse(Float64, readline(file))
+                end
+            end
+        end
+    end
+    close(file)
+    #@show high_fidelity_B
+
+    # Set up grid of subplots
+    #nϕ = 1
+    #n_plots = nϕ * 3 * 2
+    n_plots = 4 * 2
+    n_cols = Int(ceil(0.9 * sqrt(n_plots)))
+    n_rows = Int(ceil(n_plots / n_cols))
+    @show n_plots, n_rows, n_cols
+    xyz = ["Bx", "By", "Bz", "|B|"]
+
+    layout = (n_rows, n_cols)
+    plots = Array{Any, 1}(undef, n_plots)
+    scalefontsizes()
+    scalefontsizes(0.8)
+
+    Plots.gr_cbar_width[] = 0.01
+
+    uplot = [((jn - 1) / (nn - 1) * 2 - 1) * aminor for jn in 1:nn]
+    vplot = [((jb - 1) / (nb - 1) * 2 - 1) * aminor for jb in 1:nb]
+    u2d = [uplot[jn] for jb in 1:nb, jn in 1:nn]
+    v2d = [vplot[jb] for jb in 1:nb, jn in 1:nn]
+    ρ = @. sqrt(u2d^2 + v2d^2) / aminor
+    θ = atan.(v2d, u2d)
+    @show ρ
+    @show θ
+
+    for subtract_leading_order in [false, true]
+        index = 1
+        for jϕ in 1:1
+            #for jϕ in 1:nϕ
+                ϕ = 2π * (jϕ - 1) / nϕ
+            differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
+
+            B_regularized = B_filament_adaptive(coil, position; regularization=regularization)
+            @show B_regularized
+            
+            for jxyz in 1:4
+                # jxyz = 4 corresponds to |B|
+                if jxyz < 4
+                    leading_order_solution = μ0 * I / (2π * aminor * aminor) * (
+                        -normal[jxyz] * v2d + binormal[jxyz] * u2d
+                    )
+                end
+                for hifi in [true, false]
+                    if jxyz < 4
+                        if hifi
+                            data = high_fidelity_B[jϕ, :, :, jxyz]'
+                        else
+                            data = zeros(nb, nn)
+                            for jb in 1:nb
+                                for jn in 1:nn
+                                    data[jb, jn] = (
+                                        B_regularized[jxyz] 
+                                        + CoilForces.B_local(coil, curvature, normal[jxyz], binormal[jxyz], ρ[jb, jn], θ[jb, jn])
+                                    )
+                                end
+                            end
+                        end
+                        if subtract_leading_order
+                            data -= leading_order_solution
+                        end
+                    else
+                        # jxyz = 4
+                        if hifi
+                            data = sqrt.(
+                                high_fidelity_B[jϕ, :, :, 1] .* high_fidelity_B[jϕ, :, :, 1]
+                                .+ high_fidelity_B[jϕ, :, :, 2] .* high_fidelity_B[jϕ, :, :, 2]
+                                .+ high_fidelity_B[jϕ, :, :, 3] .* high_fidelity_B[jϕ, :, :, 3]
+                                )'
+                        else
+                            data_squared = zeros(nb, nn)
+                            for jb in 1:nb
+                                for jn in 1:nn
+                                    for jxyz2 = 1:3
+                                        data_squared[jb, jn] += (
+                                            B_regularized[jxyz2] 
+                                            + CoilForces.B_local(coil, curvature, normal[jxyz2], binormal[jxyz2], ρ[jb, jn], θ[jb, jn])
+                                        )^2
+                                    end
+                                    data = sqrt.(data_squared)
+                                end
+                            end
+                        end
+                    end
+
+                    # Don't plot data outside the coil - make those points NaN
+                    for jb in 1:nb
+                        for jn in 1:nn
+                            if uplot[jn]^2 + vplot[jb]^2 > aminor^2
+                                data[jb, jn] = NaN
+                            end
+                        end
+                    end
+
+                    #maxB = maximum(leading_order_solution)
+                    #minB = minimum(leading_order_solution)
+                    #if maxB == minB
+                    #    maxB += 1e-10
+                    #end
+                    #contour_levels = collect(range(minB, maxB, length=25))
+                    ##@show contour_levels
+
+                    length_factor = 100 # cm
+                    plots[index] = contour(uplot * length_factor, vplot * length_factor, data,
+                        aspect_ratio = :equal,
+                        #levels=contour_levels,
+                    )
+                    index += 1
+                    title_str = @sprintf "%s [Tesla] at ϕ=%.2f" xyz[jxyz] ϕ
+                    #title!("B$(xyz[jxyz]) [Tesla] at ϕ=$(ϕ)")
+                    if hifi
+                        title_str = "HiFi " * title_str
+                    else
+                        title_str = "analytic " * title_str
+                    end
+                    title!(title_str)
+                    xlabel!("x [cm]")
+                    ylabel!("y [cm]")
+                    nθ = 150
+                    θplot = collect(range(0, 2π, length=nθ))
+                    plot!(aminor * cos.(θplot) * length_factor, aminor * sin.(θplot) * length_factor, linewidth=1.5, color=:black, label=nothing)
+                end
+            end
+        end
+        plot(plots..., layout=layout, dpi=100, size=(1100, 850),
+            margin=3mm,
+        )
+        if subtract_leading_order
+            filename_extension = "_without_leading_order"
+        else
+            filename_extension = ""
+        end
+        #annotate!((0., 0., directory * filename), subplot=1)
+        savefig("/Users/mattland/Box/work23/20230510-02_HSX_B" * filename_extension * ".pdf")
+    end
+
+end
+
+
 function debug_stalling_B_integral(;
     aminor = 0.01,  # Minor radius of coil [meters]
     I = 1.0e4,  # Total current [Amperes]
@@ -1380,4 +1628,207 @@ function reproduce_Sienas_plot_of_locally_circular_approx()
     xlabel!("ϕ")
     title!("dFₓ/dℓ for HSX coil 1, Garren's locally circular approximation")
     ylims!(-3.7e6, 2.25e6)
+
+end
+
+function reproduce_Sienas_plot_of_exact_and_locally_circular_approx()
+    directory = "/Users/mattland/Box/work23/20230429-01_hifi_force_for_HSX_coil_1/"
+    filename = "20230429-01-hifi_force_for_HSX_coil_1_a0.0032695461797682913_nphi100_rtol0.01_atol0.01_2023-04-30T16.14.53.488.dat"
+    csv_file = CSV.File(directory * filename)
+    
+    curve = get_curve("hsx", 1)
+    current = 1e6
+    R_eff = curve_length(curve) / (2π)
+    aminor = 0.01 * R_eff
+    @show aminor
+    coil = Coil(curve, current, aminor)
+    nϕ = 200
+    ϕ = [(jϕ - 1) * 2π / nϕ for jϕ in 1:nϕ]
+    forces = zeros(nϕ, 3)
+    for j in 1:nϕ
+        forces[j, :] = force_locally_circular_approximation(coil, ϕ[j])
+    end
+
+    # Save 1D result to a text file
+    new_filename = "20230429-01-locally_circular_approx_force_for_HSX_coil_1_a$(aminor)_I$(current)_nphi$(nϕ).dat"
+    open(directory * new_filename, "w") do file
+        write(file, "ϕ, force_x/length, force_y/length, force_z/length\n")
+        for jϕ in 1:nϕ
+            write(file, "$(ϕ[jϕ]), $(forces[jϕ, 1]), $(forces[jϕ, 2]), $(forces[jϕ, 3])\n")
+        end
+    end
+
+    plot(csv_file.ϕ, csv_file[" force_x/length"], label="exact", dpi=100, size=(510, 400))
+    plot!(ϕ, forces[:, 1], label="locally circular approx", color=:darkorange)
+    xlabel!("ϕ")
+    title!("dFₓ/dℓ for HSX coil 1")
+    ylims!(-3.7e6, 2.25e6)
+end
+
+function compare_hifi_force_to_1D_for_HSX()
+    #filename = "20230429-01-hifi_force_for_HSX_coil_1_a0.0032695461797682913_nphi100_rtol0.01_atol0.01_2023-04-30T16.14.53.488.dat"
+    #aminor = 0.0032695461797682913
+    #current = 1e6
+
+    #filename = "20230429-01-hifi_force_for_HSX_coil_1_a0.01_nphi100_rtol0.001_atol0.001_2023-04-30T07.30.37.591.dat"
+    #aminor = 0.01
+    #current = 1.5e5
+
+    #filename = "20230429-01-hifi_force_for_HSX_coil_1_a0.1_nphi100_rtol0.001_atol0.001_2023-05-02T11.26.56.050.dat"
+    #aminor = 0.1
+    #current = 1e6
+
+    filename = "20230429-01-hifi_force_for_HSX_coil_1_a0.001_nphi100_rtol0.0001_atol0.0001_2023-05-01T20.47.56.154.dat"
+    aminor = 0.001
+    current = 1e6
+
+    directory = "/Users/mattland/Box/work23/20230429-01_hifi_force_for_HSX_coil_1/"
+    csv_file = CSV.File(directory * filename)
+    
+    curve = get_curve("hsx", 1)
+    @show aminor
+    regularization = aminor * aminor / sqrt(ℯ)
+    coil = Coil(curve, current, aminor)
+    nϕ = length(csv_file.ϕ)
+    ϕs = [(jϕ - 1) * 2π / nϕ for jϕ in 1:nϕ]
+    forces = zeros(nϕ, 3)
+    for j in 1:nϕ
+        ϕ = ϕs[j]
+        r_eval = γ(curve, ϕ)
+        tangent_vec = tangent(curve, ϕ)
+        B = B_filament_adaptive(coil, r_eval; regularization=regularization)
+        forces[j, :] = current * cross(tangent_vec, B)
+    end
+
+    modF = sqrt.(forces[:, 1].^2 + forces[:, 2].^2 + forces[:, 3].^2)
+    @show modF
+    normalization = sqrt(sum(modF.^2) / nϕ)
+    @show normalization
+
+    p1 = plot(csv_file.ϕ, csv_file[" force_x/length"], label="high fidelity")
+    plot!(ϕs, forces[:, 1], linestyle=:dash, label="1D filament model", color=:darkorange)
+    xlabel!("ϕ")
+    title!("dFx/dℓ")
+
+    p2 = plot(csv_file.ϕ, csv_file[" force_y/length"], label="high fidelity")
+    plot!(ϕs, forces[:, 2], linestyle=:dash, label="1D filament model", color=:darkorange)
+    xlabel!("ϕ")
+    title!("dFy/dℓ")
+
+    p3 = plot(csv_file.ϕ, csv_file[" force_z/length"], label="high fidelity")
+    plot!(ϕs, forces[:, 3], linestyle=:dash, label="1D filament model", color=:darkorange)
+    xlabel!("ϕ")
+    title!("dFz/dℓ")
+
+    p4 = plot(ϕs, (csv_file[" force_x/length"] - forces[:, 1]) / normalization, label=false)
+    xlabel!("ϕ")
+    title!("Relative difference in dFx/dℓ")
+
+    p5 = plot(ϕs, (csv_file[" force_y/length"] - forces[:, 2]) / normalization, label=false)
+    xlabel!("ϕ")
+    title!("Relative difference in dFy/dℓ")
+
+    p6 = plot(ϕs, (csv_file[" force_z/length"] - forces[:, 3]) / normalization, label=false)
+    xlabel!("ϕ")
+    title!("Relative difference in dFz/dℓ")
+
+    plot(p1, p2, p3, p4, p5, p6, layout=(2, 3), dpi=100, size=(1100, 850), 
+        plot_title="HSX coil 1\n$(filename)",
+    )
+    directory2 = "/Users/mattland/Box/work23/"
+    savefig(directory2 * "HSX_coil_force_hifi_vs_filament_a$(aminor).pdf")
+
+    # Save 1D result to a text file
+    new_filename = "20230429-01-regularized_1D_BS_force_for_HSX_coil_1_a$(aminor)_I$(current)_nphi$(nϕ).dat"
+    open(directory * new_filename, "w") do file
+        write(file, "ϕ, force_x/length, force_y/length, force_z/length\n")
+        for jϕ in 1:nϕ
+            write(file, "$(ϕs[jϕ]), $(forces[jϕ, 1]), $(forces[jϕ, 2]), $(forces[jϕ, 3])\n")
+        end
+    end
+    println("Finished.")
+end
+
+
+function plot_hifi_force_and_1D_for_HSX_for_talk()
+    #filename = "20230429-01-hifi_force_for_HSX_coil_1_a0.0032695461797682913_nphi100_rtol0.01_atol0.01_2023-04-30T16.14.53.488.dat"
+    #aminor = 0.0032695461797682913
+    #current = 1e6
+
+    #filename = "20230429-01-hifi_force_for_HSX_coil_1_a0.01_nphi100_rtol0.001_atol0.001_2023-04-30T07.30.37.591.dat"
+    #aminor = 0.01
+    #current = 1.5e5
+
+    filenames = [
+        "20230429-01-hifi_force_for_HSX_coil_1_a0.1_nphi100_rtol0.001_atol0.001_2023-05-02T11.26.56.050.dat",
+        "20230429-01-hifi_force_for_HSX_coil_1_a0.01_nphi100_rtol0.001_atol0.001_2023-04-30T07.30.37.591.dat",
+        #"20230429-01-hifi_force_for_HSX_coil_1_a0.0032695461797682913_nphi100_rtol0.01_atol0.01_2023-04-30T16.14.53.488.dat",
+    ]
+    aminors = [
+        0.1,
+        0.01,
+        #0.0032695461797682913,
+    ]
+    currents = [
+        1e6,
+        150e3,
+        1e6,
+    ]
+
+    # Rescale results to a current of 150 kA
+    current_scale_factors = (150e3) ./ currents
+    #current_scale_factors = [1, 1]
+
+    #filename = "20230429-01-hifi_force_for_HSX_coil_1_a0.001_nphi100_rtol0.0001_atol0.0001_2023-05-01T20.47.56.154.dat"
+    #aminor = 0.001
+    #current = 1e6
+
+    directory = "/Users/mattland/Box/work23/20230429-01_hifi_force_for_HSX_coil_1/"
+
+    plots = Vector{Any}(undef, 2)
+    scalefontsizes()
+    #scalefontsizes(0.5)
+
+    for ja in 1:2
+        filename = filenames[ja]
+        aminor = aminors[ja]
+        current = currents[ja]
+        csv_file = CSV.File(directory * filename)
+        
+        curve = get_curve("hsx", 1)
+        @show aminor
+        regularization = aminor * aminor / sqrt(ℯ)
+        coil = Coil(curve, current, aminor)
+        nϕ = length(csv_file.ϕ)
+        ϕs = [(jϕ - 1) * 2π / nϕ for jϕ in 1:nϕ]
+        forces = zeros(nϕ, 3)
+        for j in 1:nϕ
+            ϕ = ϕs[j]
+            r_eval = γ(curve, ϕ)
+            tangent_vec = tangent(curve, ϕ)
+            B = B_filament_adaptive(coil, r_eval; regularization=regularization)
+            forces[j, :] = current * cross(tangent_vec, B)
+        end
+
+        # Note that force ∝ current^2:
+        normalization = 1e3 / (current_scale_factors[ja]^2)
+        plots[ja] = plot(
+            csv_file.ϕ, csv_file[" force_x/length"] / normalization, label=false, framestyle = :box,
+            linewidth=2,
+        )
+        plot!(
+            ϕs, forces[:, 1] / normalization, linestyle=:dash, label=false, color=:darkorange,
+            linewidth=3
+        )
+        xlabel!("ϕ")
+        title!("a = $(Int(aminor * 100)) cm")
+        xlims!(0, 2π)
+    end
+
+    plot(plots..., layout=(1, 2), dpi=100, size=(950, 400), 
+        #plot_title="HSX coil 1",
+    )
+    savefig("/Users/mattland/Box/work23/20230508-01-HSX_coil_force_hifi_vs_filament.pdf")
+
+    println("Finished.")
 end
