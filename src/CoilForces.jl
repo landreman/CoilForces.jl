@@ -21,6 +21,7 @@ export plot_force_for_HSX, plot_integrand
 export analytic_force_per_unit_length, interpolated_force_per_unit_length, force_finite_thickness, force_locally_circular_approximation
 export force_finite_thickness_5D, force_finite_thickness_singularity_subtraction
 export hifi_circular_coil_compute_Bz, hifi_circular_coil_force
+export analytic_inductance_for_circular_coil, inductance_filament_adaptive
 
 include("utils.jl")
 include("Curve.jl")
@@ -31,5 +32,6 @@ include("BiotSavart.jl")
 include("results.jl")
 include("force.jl")
 include("hifi_circular_coil.jl")
+include("inductance.jl")
 
 end
