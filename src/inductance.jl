@@ -53,3 +53,44 @@ function inductance_filament_adaptive(coil::Coil; reltol=1e-8, abstol=1e-14)
     )
     return val * μ0 / (4π)
 end
+
+"""
+Compute the self-inductance of a coil via a 6D integral, accounting for the
+finite thickness.
+"""
+function inductance_finite_thickness(coil::Coil; reltol=1e-3, abstol=1e-5)
+
+    function inductance_cubature_func(xp)
+        ρ = xp[1]
+        θ = xp[2]
+        ϕ = xp[3]
+        dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
+        r = ρ * coil.aminor
+        sinθ, cosθ = sincos(θ)
+        sqrtg = (1 - κ * r * cosθ) * ρ * dℓdϕ
+        r_eval = r0 + r * cosθ * normal + r * sinθ * binormal
+        A = A_finite_thickness_normalized(
+            coil,
+            r_eval,
+            reltol=reltol,
+            abstol=abstol,
+            ϕ_shift=ϕ,
+            θ_shift=θ,
+        )
+        return sqrtg * dot(tangent, A)
+    end
+
+    inductance_xmin = [0, 0, 0]
+    inductance_xmax = [1, 2π, 2π]
+    
+    val, err = hcubature(
+        inductance_cubature_func, 
+        inductance_xmin,
+        inductance_xmax;
+        atol=abstol,
+        rtol=reltol
+    )
+    A_prefactor = μ0 * coil.current / (4 * π * π)
+    L_prefactor = 1 / (π * coil.current)
+    return A_prefactor * L_prefactor * val
+end
