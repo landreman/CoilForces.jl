@@ -32,6 +32,7 @@ include("BiotSavart.jl")
 include("results.jl")
 include("force.jl")
 include("hifi_circular_coil.jl")
+include("vector_potential.jl")
 include("inductance.jl")
 
 end
