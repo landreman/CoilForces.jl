@@ -1832,3 +1832,88 @@ function plot_hifi_force_and_1D_for_HSX_for_talk()
 
     println("Finished.")
 end
+
+function save_inductance_a_scan()
+    reltol = 1e-6
+    abstol = 1e-6
+
+    hsx = true
+    #hsx = false
+
+    aminors = 10 .^ collect(((-3.0):(0.0625):(0)))
+    #aminors = 10 .^ collect(((-2.0):(0.5):(0)))
+    println("Values of a/R that will be evaluated: ", aminors)
+
+    if hsx
+        curve = get_curve("hsx", 1)
+        config_str = "hsx"
+    else
+        # Major radius of coil [meters]
+        R0 = 1.0
+        curve = CurveCircle(R0)
+        config_str = "circle"
+    end
+
+    # Total current [Amperes]
+    I = 1.0
+
+    inductances_hifi = similar(aminors)
+    inductances_filament = similar(aminors)
+    times = similar(aminors)
+    for ja in 1:length(aminors)
+        a = aminors[ja]
+        println("a = ", a)
+        coil = Coil(curve, I, a)
+
+        @time L_filament = inductance_filament_adaptive(coil; abstol=0, reltol=1e-12)
+        time_data = @timed L_hifi = inductance_finite_thickness(coil; reltol=reltol, abstol=abstol)
+        times[ja] = time_data.time
+        inductances_hifi[ja] = L_hifi
+        inductances_filament[ja] = L_filament
+        println("  time: $(time_data.time)  L_filament: $(L_filament)  L_hifi: $(L_hifi)  ratio: $(L_filament / L_hifi)")
+    end
+
+    directory = "/Users/mattland/Box/work23/20230517-01-inductance_a_scans/"
+    date_str = replace("$(Dates.now())", ":" => ".")
+    filename = "inductance_$(config_str)_rtol_$(reltol)_atol_$(abstol)_$(date_str).dat"
+    open(directory * filename, "w") do file
+        write(file, "a,L_hifi,L_filament,time\n")
+        for ja in 1:length(aminors)
+            write(file, "$(aminors[ja]),$(inductances_hifi[ja]),$(inductances_filament[ja]),$(times[ja])\n")
+        end
+    end
+    
+end
+
+function plot_inductance_a_scan()
+    directory = "/Users/mattland/Box/work23/20230517-01-inductance_a_scans/"
+    filenames = [
+        "inductance_circle_rtol_0.001_atol_0.001_2023-05-17T18.07.45.692.dat",
+        "inductance_circle_rtol_0.0001_atol_0.0001_2023-05-17T18.08.57.739.dat",
+        "inductance_circle_rtol_1.0e-5_atol_1.0e-5_2023-05-17T18.16.35.204.dat",
+        "inductance_circle_rtol_1.0e-6_atol_1.0e-6_2023-05-17T19.04.53.314.dat",
+    ]
+    filenames = [
+        "inductance_hsx_rtol_0.01_atol_0.01_2023-05-17T21.11.27.941.dat",
+        "inductance_hsx_rtol_0.001_atol_0.001_2023-05-18T02.29.30.339.dat",
+    ]
+    n = length(filenames)
+    plot()
+    #    xscale=:log10,
+    #    yscale=:log10,
+    #)
+    for j in 1:n
+        filename = filenames[j]
+        f = CSV.File(directory * filename)
+        data = @. (f.L_hifi - f.L_filament) / f.L_hifi
+    
+        plot!(f.a, abs.(data), 
+            xscale=:log10,
+            yscale=:log10,
+            label=filename,
+            minorgrid=true,
+        )
+    end
+    xlabel!("aminor")
+    title!("|L_hifi - L_filament| / L_hifi")
+end
