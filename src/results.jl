@@ -1840,7 +1840,8 @@ function save_inductance_a_scan()
     hsx = true
     #hsx = false
 
-    aminors = 10 .^ collect(((-3.0):(0.0625):(0)))
+    aminors = 10 .^ collect(((-4.0):(0.0625):(-1.0625)))
+    #aminors = 10 .^ collect(((-3.0):(0.0625):(0)))
     #aminors = 10 .^ collect(((-2.0):(0.5):(0)))
     println("Values of a/R that will be evaluated: ", aminors)
 
@@ -1865,7 +1866,7 @@ function save_inductance_a_scan()
         println("a = ", a)
         coil = Coil(curve, I, a)
 
-        @time L_filament = inductance_filament_adaptive(coil; abstol=0, reltol=1e-12)
+        @time L_filament = inductance_filament_adaptive(coil; abstol=0, reltol=1e-9)
         time_data = @timed L_hifi = inductance_finite_thickness(coil; reltol=reltol, abstol=abstol)
         times[ja] = time_data.time
         inductances_hifi[ja] = L_hifi
@@ -1896,6 +1897,13 @@ function plot_inductance_a_scan()
     filenames = [
         "inductance_hsx_rtol_0.01_atol_0.01_2023-05-17T21.11.27.941.dat",
         "inductance_hsx_rtol_0.001_atol_0.001_2023-05-18T02.29.30.339.dat",
+    ]
+    filenames = [
+        "inductance_hsx_rtol_0.01_atol_0.01_2023-05-19T06.06.42.412.dat",
+        "inductance_hsx_rtol_0.001_atol_0.001_2023-05-19T06.14.05.159.dat",
+        "inductance_hsx_rtol_0.0001_atol_0.0001_2023-05-19T06.36.41.152.dat",
+        "inductance_hsx_rtol_1.0e-5_atol_1.0e-5_2023-05-23T13.47.07.432.dat",
+        "inductance_hsx_rtol_1.0e-6_atol_1.0e-6_2023-05-27T08.08.26.215.dat",
     ]
     n = length(filenames)
     plot()
