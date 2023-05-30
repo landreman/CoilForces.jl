@@ -61,5 +61,5 @@ struct CoilRectangularXSection <: Coil
     current::Float64
     a::Float64
     b::Float64
-    α::WindingPackAngle
+    winding_pack_angle::WindingPackAngle
 end

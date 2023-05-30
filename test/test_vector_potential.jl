@@ -2,7 +2,7 @@ using CoilForces
 using Test
 
 @testset "Vector potential tests" begin
-    @testset "For a circular coil, compare finite thickness A to analytic result" begin
+    @testset "For a circular coil with circular x-section, compare finite thickness A to analytic result" begin
         R0 = 1.3
         aminor = 0.001
         current = 1.7e5
@@ -37,5 +37,76 @@ using Test
                 @test A_hifi[2] ≈ A_analytic rtol=4e-7
             end
         end
+    end
+
+    @testset "For a circular coil with rectangular x-section, compare finite thickness A to analytic result" begin
+        R0 = 1.3
+        a = 0.002
+        b = 0.003
+        current = 1.7e5
+        curve = CurveCircle(R0)
+        wpa = WindingPackAngleZero()
+        coil = CoilRectangularXSection(curve, current, a, b, wpa)
+
+        """
+        H(q, p) = (
+            q * q * atan(p / q)
+            + p * p * atan(q / p)
+            + p * q * log((q * q + p * p) / (a * b))
+        ) / (a * b)
+        """
+
+        H(q, p) = (
+            q * q * atan(p / q)
+            + p * p * atan(q / p)
+            + p * q * log(q * q + p * p)
+        )
+
+        nu = 5
+        nv = 7
+        A_numerical = zeros(nu, nv)
+        A_analytic = zeros(nu, nv)
+        for ju in 1:nu
+            for jv in 1:nv
+                u = ((ju - 1) / (nu - 1) - 0.5) * a * 0.9999
+                v = ((jv - 1) / (nv - 1) - 0.5) * b * 0.9999
+                r_eval = [R0 - u, 0, v]
+                A_hifi = CoilForces.A_finite_thickness(
+                    coil, 
+                    r_eval;
+                    reltol=1e-6,
+                    abstol=1e-12,
+                )
+
+                # For the leading-order analytic result, see
+                # 20230528-02 Self-inductance for coils with rectangular cross-section.lyx
+                temp = -1 + log(64 * R0 * R0)
+                #temp = -1 + log(64 * R0 * R0 / (a * b))
+                for su in [-1, 1]
+                    for sv in [-1, 1]
+                        temp -= su * sv * H(u + su * a / 2, v + sv * b / 2) / (a * b)
+                    end
+                end
+                A_analytic[ju, jv] = μ0 * current / (4π) * temp
+                A_numerical[ju, jv] = A_hifi[2]
+                #println("$(A_hifi)")
+                @test abs(A_hifi[1]) < 1e-8
+                @test abs(A_hifi[3]) < 1e-8
+                @test A_hifi[2] ≈ A_analytic[ju, jv] rtol=6e-4
+            end
+        end
+
+        """
+        scalefontsizes()
+        scalefontsizes(0.5)
+
+        p1 = contour(A_numerical, title="Numerical")
+        p2 = contour(A_analytic, title="Analytic, leading")
+        p3 = contour(A_numerical - A_analytic, title="num - leading")
+        plot(p1, p2, p3,
+            layout=(2, 2),
+            size=(600, 600),
+        )
+        """
     end
 end
