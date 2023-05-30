@@ -1,4 +1,4 @@
-struct Coil
+struct CoilCircularXSection
     curve::Curve
     current::Float64
     aminor::Float64
@@ -6,7 +6,7 @@ end
 
 Biot_savart_prefactor = μ0 / (4π)
 
-function d_B_d_ϕ(coil::Coil, ϕ, r_eval; regularization=0.0)
+function d_B_d_ϕ(coil::CoilCircularXSection, ϕ, r_eval; regularization=0.0)
     data = γ_and_derivative(coil.curve, ϕ)
     Δr = r_eval - data[:, 1]
     temp = normsq(Δr) + regularization
@@ -18,7 +18,7 @@ end
 ϕ: curve parameter for the incremental current that contributes to B.
 ϕ0: curve parameter at which we are evaluating B.
 """
-function d_B_d_ϕ_singularity_subtracted(coil::Coil, ϕ, r_eval, regularization, ϕ0, r_prime_prime_cross_r_prime, dℓdϕ_squared)
+function d_B_d_ϕ_singularity_subtracted(coil::CoilCircularXSection, ϕ, r_eval, regularization, ϕ0, r_prime_prime_cross_r_prime, dℓdϕ_squared)
     data = γ_and_derivative(coil.curve, ϕ)
     Δr = r_eval - data[:, 1]
     temp = normsq(Δr) + regularization
@@ -34,13 +34,13 @@ end
 
 
 """
-    B_filament_fixed(coil::Coil, r_eval, nϕ; regularization=0.0, drop_first_point=false)
+    B_filament_fixed(coil::CoilCircularXSection, r_eval, nϕ; regularization=0.0, drop_first_point=false)
 
 Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
 infinitesmally thin filament. Use quadrature on a fixed uniform grid with
 specified number of points, nϕ.
 """
-function B_filament_fixed(coil::Coil, r_eval, nϕ; regularization=0.0, drop_first_point=false)
+function B_filament_fixed(coil::CoilCircularXSection, r_eval, nϕ; regularization=0.0, drop_first_point=false)
     dϕ = 2π / nϕ
     B = [0.0, 0.0, 0.0]
     if drop_first_point
@@ -57,12 +57,12 @@ function B_filament_fixed(coil::Coil, r_eval, nϕ; regularization=0.0, drop_firs
 end
 
 """
-    B_filament_adaptive(coil::Coil, r_eval; regularization=0.0, reltol=1e-8, abstol=1e-14)
+    B_filament_adaptive(coil::CoilCircularXSection, r_eval; regularization=0.0, reltol=1e-8, abstol=1e-14)
 
 Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
 infinitesmally thin filament. Use adaptive quadrature.
 """
-function B_filament_adaptive(coil::Coil, r_eval; regularization=0.0, reltol=1e-8, abstol=1e-14)
+function B_filament_adaptive(coil::CoilCircularXSection, r_eval; regularization=0.0, reltol=1e-8, abstol=1e-14)
     function Biot_Savart_integrand(ϕ0) 
         return d_B_d_ϕ(coil, ϕ0, r_eval, regularization=regularization)
     end
@@ -70,7 +70,7 @@ function B_filament_adaptive(coil::Coil, r_eval; regularization=0.0, reltol=1e-8
     return val
 end
 
-function singularity_term(coil::Coil, ϕ)
+function singularity_term(coil::CoilCircularXSection, ϕ)
     data = γ_and_2_derivatives(coil.curve, ϕ)
     r_prime = data[:, 2]
     dϕdℓ = 1 / norm(r_prime)
@@ -80,7 +80,7 @@ function singularity_term(coil::Coil, ϕ)
 end
 
 """
-    B_singularity_subtraction_fixed(coil::Coil, ϕ0, nϕ)
+    B_singularity_subtraction_fixed(coil::CoilCircularXSection, ϕ0, nϕ)
 
 Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
 infinitesmally thin filament. Use quadrature on a fixed uniform grid with
@@ -88,7 +88,7 @@ specified number of points, nϕ.
 
 ϕ0: curve parameter at which to evaluate B.
 """
-function B_singularity_subtraction_fixed(coil::Coil, ϕ0, nϕ)
+function B_singularity_subtraction_fixed(coil::CoilCircularXSection, ϕ0, nϕ)
     dϕ = 2π / nϕ
     B = [0.0, 0.0, 0.0]
     
@@ -114,7 +114,7 @@ compute the integrand for evaluating B.
 
 See 20221016-01 Numerical evaluation of B for finite thickness coil.lyx
 """
-function B_finite_thickness_integrand(coil::Coil, ρ, θ, ϕ, r_eval, regularization=1e-100)
+function B_finite_thickness_integrand(coil::CoilCircularXSection, ρ, θ, ϕ, r_eval, regularization=1e-100)
     r = ρ * coil.aminor
     dℓdϕ, κ, τ, dr, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
     sinθ, cosθ = sincos(θ)
@@ -131,7 +131,7 @@ This version of the function takes cosθ and sinθ instead of θ. This improves
 efficiency for singularity-subtraction calculations so the cos and sin do not
 need to be recalculated.
 """
-function B_finite_thickness_integrand_sincos(coil::Coil, ρ, cosθ, sinθ, ϕ, r_eval)
+function B_finite_thickness_integrand_sincos(coil::CoilCircularXSection, ρ, cosθ, sinθ, ϕ, r_eval)
     r = ρ * coil.aminor
     dℓdϕ, κ, τ, dr, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
     @. dr += (r * cosθ) * normal + (r * sinθ) * binormal - r_eval
@@ -147,7 +147,7 @@ Compute the magnetic field vector at a point with specified Cartesian
 coordinates. In this version of the function, the prefactor μ0 I / (4 π^2) is
 not included!
 """
-function B_finite_thickness_normalized(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
+function B_finite_thickness_normalized(coil::CoilCircularXSection, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
     function Biot_savart_cubature_func(xp)
         return B_finite_thickness_integrand(coil, xp[1], xp[2], xp[3], r_eval)
     end
@@ -174,7 +174,7 @@ coordinates. In this version of the function, the prefactor μ0 I / (4 π^2) is
 not included. Also, Siena's trick of subtracting the contribution from the
 best-fit circular coil is used.
 """
-function B_finite_thickness_singularity_subtraction(coil::Coil, best_fit_circular_coil::Coil, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
+function B_finite_thickness_singularity_subtraction(coil::CoilCircularXSection, best_fit_circular_coil::CoilCircularXSection, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
     function Biot_savart_cubature_func(xp)
         sinθ, cosθ = sincos(xp[2])
         return (
@@ -201,7 +201,7 @@ Compute the magnetic field vector at a point with specified Cartesian
 coordinates. In this version of the function, the prefactor μ0 I / (4 π^2) is
 included.
 """
-function B_finite_thickness(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
+function B_finite_thickness(coil::CoilCircularXSection, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
     prefactor = coil.current / (π) * Biot_savart_prefactor
     return prefactor * B_finite_thickness_normalized(coil, r_eval; reltol=reltol, abstol=abstol, ϕ_shift=ϕ_shift, θ_shift=θ_shift)
 end
@@ -210,7 +210,7 @@ end
 Returns eq (124) in
 20230326-01_B_in_conductor_for_a_noncircular_finite_thickness_coil.pdf
 """
-function B_local(coil::Coil, curvature, normal, binormal, ρ, θ)
+function B_local(coil::CoilCircularXSection, curvature, normal, binormal, ρ, θ)
     return (
         μ0 * coil.current * ρ / (2π * coil.aminor) * (-normal * sin(θ) + binormal * cos(θ))
         + μ0 * coil.current * curvature / (8π) * (

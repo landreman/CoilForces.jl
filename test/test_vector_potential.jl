@@ -7,7 +7,7 @@ using Test
         aminor = 0.001
         current = 1.7e5
         curve = CurveCircle(R0)
-        coil = Coil(curve, current, aminor)
+        coil = CoilCircularXSection(curve, current, aminor)
 
         nρ = 5
         nθ = 7

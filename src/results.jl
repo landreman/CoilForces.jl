@@ -13,7 +13,7 @@ function plot_force_non_convergence_skipping_point_circular()
     I = 1.0e6
 
     curve = CurveCircle(R0)
-    coil = Coil(curve, I, aminor)
+    coil = CoilCircularXSection(curve, I, aminor)
     r_eval = [R0, 0, 0]
 
     # Generate numbers of quadrature points to try:
@@ -69,7 +69,7 @@ function plot_force_non_convergence_skipping_point_circular_with_ours()
     I = 1.0e6
 
     curve = CurveCircle(R0)
-    coil = Coil(curve, I, aminor)
+    coil = CoilCircularXSection(curve, I, aminor)
     r_eval = [R0, 0, 0]
 
     # Generate numbers of quadrature points to try:
@@ -146,7 +146,7 @@ function plot_modB_non_convergence_skipping_point_circular_with_ours()
     I = 1.0e6
 
     curve = CurveCircle(R0)
-    coil = Coil(curve, I, aminor)
+    coil = CoilCircularXSection(curve, I, aminor)
     r_eval = [R0, 0, 0]
 
     modB_analytic = (
@@ -229,7 +229,7 @@ function plot_force_for_HSX()
     # minor radius of conductor:
     a = 0.02
 
-    coil = Coil(curve, current, a)
+    coil = CoilCircularXSection(curve, current, a)
     regularization = a * a / sqrt(ℯ)
 
     # Number of grid points on which to report the force.
@@ -264,7 +264,7 @@ function plot_integrand()
     ϕ0 = 0.0
     ϕ0 = 2π/5
 
-    coil = Coil(curve, current, a)
+    coil = CoilCircularXSection(curve, current, a)
     δ = a * a / sqrt(ℯ)
 
     nϕ = 1000
@@ -343,7 +343,7 @@ function plot_force_convergence_single()
     # minor radius of conductor:
     a = 0.01
 
-    coil = Coil(curve, current, a)
+    coil = CoilCircularXSection(curve, current, a)
     δ = a * a / sqrt(ℯ)
 
     # Generate numbers of quadrature points to try:
@@ -383,7 +383,7 @@ function plot_force_convergence_single_for_talk()
     # minor radius of conductor:
     a = 0.01
 
-    coil = Coil(curve, current, a)
+    coil = CoilCircularXSection(curve, current, a)
     δ = a * a / sqrt(ℯ)
 
     # Generate numbers of quadrature points to try:
@@ -463,7 +463,7 @@ function plot_force_convergence_grid()
     scalefontsizes(0.5)
     for coil_num in 1:num_coils
         curve = get_curve("hsx", coil_num)    
-        coil = Coil(curve, current, a)
+        coil = CoilCircularXSection(curve, current, a)
     
         for jϕ in 1:length(ϕs)
             ϕ0 = ϕs[jϕ]
@@ -512,7 +512,7 @@ function plot_B_near_thick_circular_coil()
     nz = 19
 
     curve = CurveCircle(R0)
-    coil = Coil(curve, I, aminor)
+    coil = CoilCircularXSection(curve, I, aminor)
 
     xplot = collect(range(R0 - 2 * aminor, R0 + 2 * aminor, length=nx))
     zplot = collect(range(- 1.5 * aminor, 1.5 * aminor, length=nz))
@@ -561,7 +561,7 @@ function save_high_fidelity_force_for_circular_coil_a_scan()
     for ja in 1:length(a_over_R)
         a = a_over_R[ja] * R0
         println("a = ", a)
-        coil = Coil(curve, I, a)
+        coil = CoilCircularXSection(curve, I, a)
 
         time_data = @timed force = hifi_circular_coil_force(R0, a, I; reltol=reltol, abstol=abstol)
         analytic = analytic_force_per_unit_length(coil)
@@ -601,7 +601,7 @@ function save_high_fidelity_force_for_circular_coil_vary_tol()
     reltols = similar(a_over_R)
     for ja in 1:length(a_over_R)
         a = a_over_R[ja]
-        coil = Coil(curve, I, a)
+        coil = CoilCircularXSection(curve, I, a)
 
         reltol = 1e-2
         #abstol = reltol * 1e+0
@@ -641,7 +641,7 @@ function save_high_fidelity_force_for_circular_coil_tol_scan()
     #I = 1.0
     I = 3.1e6
 
-    coil = Coil(curve, I, a_over_R)
+    coil = CoilCircularXSection(curve, I, a_over_R)
 
     reltols = 10 .^ collect(((-6):(1.0):(-1)))
     #reltols = [1e-2, 1e-4]
@@ -720,7 +720,7 @@ function save_high_fidelity_force_for_circular_coil2_tol_scan()
     # Total current [Amperes]
     I = 1.0
     
-    coil = Coil(curve, I, a_over_R)
+    coil = CoilCircularXSection(curve, I, a_over_R)
 
     reltols = 10 .^ collect(((-6):(1.0):(-2)))
     #reltols = [1e-2, 1e-4]
@@ -798,7 +798,7 @@ function plot_Fx_for_HSX_coil_1_Siena()
     curve = get_curve("hsx", 1)
     current = 1.0
     aminor = 0.001
-    coil = Coil(curve, current, aminor)
+    coil = CoilCircularXSection(curve, current, aminor)
     regularization = aminor * aminor / sqrt(exp(1))
 
     force = zeros((neval, 3))
@@ -831,7 +831,7 @@ function plot_Fx_for_HSX_coil_1()
     aminor = sqrt(x_sectional_area / π)
     @show aminor
 
-    coil = Coil(curve, current, aminor)
+    coil = CoilCircularXSection(curve, current, aminor)
     regularization = aminor * aminor / sqrt(exp(1))
 
     n_quadpoints_arr = [100, 1000, 10000]
@@ -889,7 +889,7 @@ function save_high_fidelity_force_for_HSX(;
     if aminor === nothing
         aminor = sqrt(x_sectional_area / π)
     end
-    coil = Coil(curve, current, aminor)
+    coil = CoilCircularXSection(curve, current, aminor)
     @show aminor
 
     forces = zeros((nϕ, 3))
@@ -956,7 +956,7 @@ function save_high_fidelity_force_for_HSX_parallel(;
         # different threads, so we define the curve here inside the loop, where
         # all new variables are distinct for each thread.
         curve = get_curve("hsx", 1)
-        coil = Coil(curve, current, aminor)
+        coil = CoilCircularXSection(curve, current, aminor)
         ϕ = ϕs[jϕ]
         println("Thread $(Threads.threadid()) is handling jϕ = $(jϕ) of $(nϕ): ϕ = ", ϕ)
         
@@ -1064,7 +1064,7 @@ function save_high_fidelity_Bz_for_circular_coil_a_scan()
     for ja in 1:length(a_over_R)
         a = a_over_R[ja] * R0
         println("a = ", a)
-        coil = Coil(curve, I, a)
+        coil = CoilCircularXSection(curve, I, a)
 
         time_data = @timed modB = hifi_circular_coil_compute_Bz(R0, a, I, R0 - a, 0; reltol=reltol, abstol=abstol)
         high_fidelity_max_B[ja] = modB
@@ -1147,7 +1147,7 @@ function save_high_fidelity_B_vector_for_circular_coil_2D()
     I = 1.0
 
     curve = CurveCircle(R0)
-    coil = Coil(curve, I, a)
+    coil = CoilCircularXSection(curve, I, a)
     high_fidelity_B = zeros(nz, nx, 3)
     for jz in 1:nz
         z = ((jz - 1.0) / (nz - 1) - 0.5) * 2 * a
@@ -1188,7 +1188,7 @@ function save_high_fidelity_B_vector_for_HSX_coil(;
 )
     curve = get_curve("hsx", 1)
     #curve = CurveCircle(1.0)
-    coil = Coil(curve, I, aminor)
+    coil = CoilCircularXSection(curve, I, aminor)
     high_fidelity_B = zeros(nϕ, nn, nb, 3)
     for jϕ in 1:nϕ
         println("Processing jϕ = $(jϕ) of $(nϕ)")
@@ -1251,7 +1251,7 @@ function plot_high_fidelity_B_vector_for_HSX_coil(
 
     curve = get_curve("hsx", 1)
     #curve = CurveCircle(1.0)
-    coil = Coil(curve, I, aminor)
+    coil = CoilCircularXSection(curve, I, aminor)
     regularization = aminor * aminor / sqrt(ℯ)
 
     # Now read the main B data:
@@ -1391,7 +1391,7 @@ function plot_high_fidelity_B_vector_for_HSX_coil_for_talk(
 
     curve = get_curve("hsx", 1)
     #curve = CurveCircle(1.0)
-    coil = Coil(curve, I, aminor)
+    coil = CoilCircularXSection(curve, I, aminor)
     regularization = aminor * aminor / sqrt(ℯ)
 
     # Now read the main B data:
@@ -1554,7 +1554,7 @@ function debug_stalling_B_integral(;
 )
     curve = get_curve("hsx", 1)
     #curve = CurveCircle(1.0)
-    coil = Coil(curve, I, aminor)
+    coil = CoilCircularXSection(curve, I, aminor)
     ϕ = π
     θ_shift=0.0
     eval_point = [1.4888650264603631, 0.24140179170087098, -0.2601603251227219]
@@ -1616,7 +1616,7 @@ function reproduce_Sienas_plot_of_locally_circular_approx()
     R_eff = curve_length(curve) / (2π)
     aminor = 0.01 * R_eff
     @show aminor
-    coil = Coil(curve, current, aminor)
+    coil = CoilCircularXSection(curve, current, aminor)
     nϕ = 200
     ϕ = [(jϕ - 1) * 2π / nϕ for jϕ in 1:nϕ]
     forces = zeros(nϕ, 3)
@@ -1641,7 +1641,7 @@ function reproduce_Sienas_plot_of_exact_and_locally_circular_approx()
     R_eff = curve_length(curve) / (2π)
     aminor = 0.01 * R_eff
     @show aminor
-    coil = Coil(curve, current, aminor)
+    coil = CoilCircularXSection(curve, current, aminor)
     nϕ = 200
     ϕ = [(jϕ - 1) * 2π / nϕ for jϕ in 1:nϕ]
     forces = zeros(nϕ, 3)
@@ -1688,7 +1688,7 @@ function compare_hifi_force_to_1D_for_HSX()
     curve = get_curve("hsx", 1)
     @show aminor
     regularization = aminor * aminor / sqrt(ℯ)
-    coil = Coil(curve, current, aminor)
+    coil = CoilCircularXSection(curve, current, aminor)
     nϕ = length(csv_file.ϕ)
     ϕs = [(jϕ - 1) * 2π / nϕ for jϕ in 1:nϕ]
     forces = zeros(nϕ, 3)
@@ -1798,7 +1798,7 @@ function plot_hifi_force_and_1D_for_HSX_for_talk()
         curve = get_curve("hsx", 1)
         @show aminor
         regularization = aminor * aminor / sqrt(ℯ)
-        coil = Coil(curve, current, aminor)
+        coil = CoilCircularXSection(curve, current, aminor)
         nϕ = length(csv_file.ϕ)
         ϕs = [(jϕ - 1) * 2π / nϕ for jϕ in 1:nϕ]
         forces = zeros(nϕ, 3)
@@ -1864,7 +1864,7 @@ function save_inductance_a_scan()
     for ja in 1:length(aminors)
         a = aminors[ja]
         println("a = ", a)
-        coil = Coil(curve, I, a)
+        coil = CoilCircularXSection(curve, I, a)
 
         @time L_filament = inductance_filament_adaptive(coil; abstol=0, reltol=1e-9)
         time_data = @timed L_hifi = inductance_finite_thickness(coil; reltol=reltol, abstol=abstol)

@@ -7,7 +7,7 @@ using Test
         aminor = 0.01
         current = 1.4e5
         curve = CurveCircle(R0)
-        coil = Coil(curve, current, aminor)
+        coil = CoilCircularXSection(curve, current, aminor)
 
         @test analytic_inductance_for_circular_coil(coil) ≈ inductance_filament_adaptive(coil) rtol=1e-5
     end
@@ -17,7 +17,7 @@ using Test
         aminor = 0.01
         current = 1.4e5
         curve = CurveCircle(R0)
-        coil = Coil(curve, current, aminor)
+        coil = CoilCircularXSection(curve, current, aminor)
 
         L_analytic = analytic_inductance_for_circular_coil(coil)
         tol = 1e-4
@@ -30,7 +30,7 @@ using Test
         aminor = 0.01
         current = 1.4e5
         curve = get_curve("hsx", 1)
-        coil = Coil(curve, current, aminor)
+        coil = CoilCircularXSection(curve, current, aminor)
 
         L_filament = inductance_filament_adaptive(coil)
         tol = 1e-3

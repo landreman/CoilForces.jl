@@ -1,4 +1,4 @@
-function analytic_inductance_for_circular_coil(coil::Coil)
+function analytic_inductance_for_circular_coil(coil::CoilCircularXSection)
     # Assert that curve type is a CurveCircle:
     coil.curve::CurveCircle
     R = coil.curve.R0
@@ -7,7 +7,7 @@ function analytic_inductance_for_circular_coil(coil::Coil)
 end
 
 """
-    inductance_filament_integrand(coil::Coil, regularization, ϕ, ϕp)
+    inductance_filament_integrand(coil::CoilCircularXSection, regularization, ϕ, ϕp)
 
 Integrand for calculating the self-inductance using the regularized filament
 method. Note that the prefactor of μ0 / (4π) is not included.
@@ -29,12 +29,12 @@ function inductance_filament_integrand(curve, regularization, ϕ, ϕp)
 end
 
 """
-    inductance_filament_adaptive(coil::Coil; reltol=1e-8, abstol=1e-14)
+    inductance_filament_adaptive(coil::CoilCircularXSection; reltol=1e-8, abstol=1e-14)
 
 Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
 infinitesmally thin filament. Use adaptive quadrature.
 """
-function inductance_filament_adaptive(coil::Coil; reltol=1e-8, abstol=1e-14)
+function inductance_filament_adaptive(coil::CoilCircularXSection; reltol=1e-8, abstol=1e-14)
     aminor = coil.aminor
     regularization = aminor * aminor / √ℯ
 
@@ -58,7 +58,7 @@ end
 Compute the self-inductance of a coil via a 6D integral, accounting for the
 finite thickness.
 """
-function inductance_finite_thickness(coil::Coil; reltol=1e-3, abstol=1e-5)
+function inductance_finite_thickness(coil::CoilCircularXSection; reltol=1e-3, abstol=1e-5)
 
     function inductance_cubature_func(xp)
         ρ = xp[1]

@@ -4,7 +4,7 @@ compute the integrand for evaluating B.
 
 See 20221016-01 Numerical evaluation of B for finite thickness coil.lyx
 """
-function A_finite_thickness_integrand(coil::Coil, ρ, θ, ϕ, r_eval, regularization=1e-100)
+function A_finite_thickness_integrand(coil::CoilCircularXSection, ρ, θ, ϕ, r_eval, regularization=1e-100)
     r = ρ * coil.aminor
     dℓdϕ, κ, τ, dr, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
     sinθ, cosθ = sincos(θ)
@@ -18,7 +18,7 @@ Compute the vector potential at a point with specified Cartesian
 coordinates. In this version of the function, the prefactor μ0 I / (4 π^2) is
 not included!
 """
-function A_finite_thickness_normalized(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
+function A_finite_thickness_normalized(coil::CoilCircularXSection, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
     function A_cubature_func(xp)
         return A_finite_thickness_integrand(coil, xp[1], xp[2], xp[3], r_eval)
     end
@@ -40,7 +40,7 @@ end
 Compute the vector potential at a point with specified Cartesian
 coordinates. In this version of the function, the prefactor μ0 I / (4 π^2) is included.
 """
-function A_finite_thickness(coil::Coil, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
+function A_finite_thickness(coil::CoilCircularXSection, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
     prefactor = μ0 * coil.current / (4 * π * π)
     return prefactor * A_finite_thickness_normalized(
         coil,

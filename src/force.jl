@@ -1,4 +1,4 @@
-function analytic_force_per_unit_length(coil::Coil)
+function analytic_force_per_unit_length(coil::CoilCircularXSection)
     # Assert that curve type is a CurveCircle:
     coil.curve::CurveCircle
     I = coil.current
@@ -59,7 +59,7 @@ const HIFI_FORCE_DATA = [
 For a circular coil, compute the force per unit length by interpolating
 pretabulated data from high-fidelity calculations.
 """
-function interpolated_force_per_unit_length(coil::Coil)
+function interpolated_force_per_unit_length(coil::CoilCircularXSection)
     # Assert that curve type is a CurveCircle:
     coil.curve::CurveCircle
     log10_a_over_R = (-2.5):0.0625:0
@@ -77,7 +77,7 @@ Compute the force-per-unit-length for a finite-thickness coil.
 
 ϕ: Curve parameter at which the force-per-unit-length will be computed.
 """
-function force_finite_thickness(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
+function force_finite_thickness(coil::CoilCircularXSection, ϕ; reltol=1e-3, abstol=1e-5)
     dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
 
     function force_cubature_func(xp)
@@ -119,7 +119,7 @@ the function uses a single call to HCubature to handle all 5 dimensions.
 
 ϕ: Curve parameter at which the force-per-unit-length will be computed.
 """
-function force_finite_thickness_5D(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
+function force_finite_thickness_5D(coil::CoilCircularXSection, ϕ; reltol=1e-3, abstol=1e-5)
     dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
 
     function force_cubature_func(xp)
@@ -171,11 +171,11 @@ Siena's trick of subtracting and adding the integrand for the best-fit circular 
 
 ϕ: Curve parameter at which the force-per-unit-length will be computed.
 """
-function force_finite_thickness_singularity_subtraction(coil::Coil, ϕ; reltol=1e-3, abstol=1e-5)
+function force_finite_thickness_singularity_subtraction(coil::CoilCircularXSection, ϕ; reltol=1e-3, abstol=1e-5)
     dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
 
     best_fit_circle = fit_circle(coil.curve, ϕ)
-    best_fit_circular_coil = Coil(best_fit_circle, coil.current, coil.aminor)
+    best_fit_circular_coil = CoilCircularXSection(best_fit_circle, coil.current, coil.aminor)
 
     function force_cubature_func(xp)
         ρ = xp[1]
@@ -211,7 +211,7 @@ function force_finite_thickness_singularity_subtraction(coil::Coil, ϕ; reltol=1
     integral = Biot_savart_prefactor * force_prefactor * val
     force_from_best_fit_circle = (
         -normal * 
-        interpolated_force_per_unit_length(Coil(CurveCircle(1 / κ), coil.current, coil.aminor))
+        interpolated_force_per_unit_length(CoilCircularXSection(CurveCircle(1 / κ), coil.current, coil.aminor))
     )
     total = integral + force_from_best_fit_circle
     @show integral
@@ -224,8 +224,8 @@ end
 Compute the self-force per unit length, using the locally circular
 approximation, Garren & Chen eq (34).
 """
-function force_locally_circular_approximation(coil::Coil, ϕ)
+function force_locally_circular_approximation(coil::CoilCircularXSection, ϕ)
     differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
-    circular_coil = Coil(CurveCircle(1 / curvature), coil.current, coil.aminor)
+    circular_coil = CoilCircularXSection(CurveCircle(1 / curvature), coil.current, coil.aminor)
     return -normal * analytic_force_per_unit_length(circular_coil)
 end

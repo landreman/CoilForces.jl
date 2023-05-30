@@ -10,7 +10,7 @@ using Test
         I = 3.1e6
 
         curve = CurveCircle(R0)
-        coil = Coil(curve, I, 0.0)
+        coil = CoilCircularXSection(curve, I, 0.0)
 
         nz = 100
         z = collect(range(-5, 5, length=nz))
@@ -44,7 +44,7 @@ using Test
         a = 0.001
 
         curve = CurveCircle(R0)
-        coil = Coil(curve, I, a)
+        coil = CoilCircularXSection(curve, I, a)
 
         nz = 10
         z = collect(range(-5, 5, length=nz))
@@ -74,7 +74,7 @@ using Test
         I = 3.1e6
 
         curve = CurveCircle(R0)
-        coil = Coil(curve, I, 0.0)
+        coil = CoilCircularXSection(curve, I, 0.0)
 
         r_eval = [1.8, 0.7, 0.4]
         B_fixed = B_filament_fixed(coil, r_eval, 100)
@@ -112,7 +112,7 @@ using Test
         a = 0.001
 
         curve = CurveCircle(R0)
-        coil = Coil(curve, I, a)
+        coil = CoilCircularXSection(curve, I, a)
 
         r_eval = [1.8, 0.7, 0.4]
         B_julia = B_finite_thickness(coil, r_eval, reltol=1e-5, abstol=1e-7)
@@ -151,7 +151,7 @@ using Test
 
         for jcoil in 1:6
             curve = get_curve("hsx", jcoil)
-            coil = Coil(curve, current, aminor)
+            coil = CoilCircularXSection(curve, current, aminor)
             B_fixed = B_filament_fixed(coil, r_eval, 1600)
             B_adaptive = B_filament_adaptive(coil, r_eval)
             B_thick = B_finite_thickness(coil, r_eval, reltol=1e-5, abstol=1e-7)
@@ -173,7 +173,7 @@ using Test
         I = 3.1e6
 
         curve = CurveCircle(R0)
-        coil = Coil(curve, I, 0.0)
+        coil = CoilCircularXSection(curve, I, 0.0)
         r_eval = [R0, 0, 0]
 
         # Generate numbers of quadrature points to try:
@@ -221,7 +221,7 @@ using Test
 
         for coil_num in 1:6
             curve = get_curve("hsx", coil_num)
-            coil = Coil(curve, current, a)
+            coil = CoilCircularXSection(curve, current, a)
 
             # ϕ0 = point at which to evaluate the force:
             for ϕ0 in ((1:nϕ0) .- 1) * 2π / nϕ0
@@ -246,7 +246,7 @@ using Test
 
     @testset "Compare 2 versions of the finite-thickness Biot-Savart integrand" begin
         curve = get_curve("hsx", 2)
-        coil = Coil(curve, 1.1e6, 0.05)
+        coil = CoilCircularXSection(curve, 1.1e6, 0.05)
         ρ = 0.6
         θ = 0.3
         ϕ = 0.2
@@ -264,7 +264,7 @@ using Test
         nθ = 3
 
         curve = CurveCircle(1.0)
-        coil = Coil(curve, I, aminor)
+        coil = CoilCircularXSection(curve, I, aminor)
         regularization = aminor * aminor / sqrt(ℯ)
 
         #####################################################

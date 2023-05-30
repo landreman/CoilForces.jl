@@ -42,7 +42,7 @@ using Test
         nz = 3
 
         curve = CurveCircle(R0)
-        coil = Coil(curve, I, aminor)
+        coil = CoilCircularXSection(curve, I, aminor)
 
         xplot = collect(range(R0 - aminor, R0 + aminor, length=nx))
         zplot = collect(range(- aminor, aminor, length=nz))
@@ -109,7 +109,7 @@ end
         I = 3.1e6
 
         curve = CurveCircle(R0)
-        coil = Coil(curve, I, a)
+        coil = CoilCircularXSection(curve, I, a)
 
         reltol = 1e-4
         abstol = 1e-9
@@ -130,7 +130,7 @@ end
         I = 3.1e6
 
         curve = CurveCircle(R0)
-        coil = Coil(curve, I, a)
+        coil = CoilCircularXSection(curve, I, a)
 
         @time force_specialized = hifi_circular_coil_force(R0, a, I; reltol=1e-4, abstol=1e-8)
         @show force_specialized
@@ -162,7 +162,7 @@ end
         for ja in 1:length(a_over_R)
             a = a_over_R[ja]
             println("a = ", a)
-            coil = Coil(curve, I, a)
+            coil = CoilCircularXSection(curve, I, a)
 
             time_data = @timed force = hifi_circular_coil_force(R0, a, I; reltol=reltol, abstol=abstol)
             analytic = analytic_force_per_unit_length(coil)

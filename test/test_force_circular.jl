@@ -18,7 +18,7 @@ using Test
         I = 3.1e6
 
         curve = CurveCircle(R0)
-        coil = Coil(curve, I, a)
+        coil = CoilCircularXSection(curve, I, a)
         @test analytic_force_per_unit_length(coil) ≈ 1.8655666361140157e6
     end
 
@@ -33,7 +33,7 @@ using Test
         I = 3.1e6
 
         curve = CurveCircle(R0)
-        coil = Coil(curve, I, a)
+        coil = CoilCircularXSection(curve, I, a)
 
         regularization = a * a / sqrt(exp(1))
         r_eval = [R0, 0, 0]
@@ -57,7 +57,7 @@ using Test
         I = 3.1e6
 
         curve = CurveCircle(R0)
-        coil = Coil(curve, I, a)
+        coil = CoilCircularXSection(curve, I, a)
 
         reltol = 1e-3
         abstol = 1e-10
@@ -81,7 +81,7 @@ using Test
         I = 3.1e6
 
         curve = CurveCircle(R0)
-        coil = Coil(curve, I, a)
+        coil = CoilCircularXSection(curve, I, a)
 
         reltol = 5e-2
         abstol = 1e-10
@@ -105,7 +105,7 @@ using Test
         I = 3.1e6
 
         curve = CurveCircle(R0)
-        coil = Coil(curve, I, a)
+        coil = CoilCircularXSection(curve, I, a)
 
         reltol = 1e-3
         abstol = 1e-10
@@ -129,21 +129,21 @@ using Test
         curve = CurveCircle(R0)
 
         # Aspect ratio 1:
-        coil = Coil(curve, I, R0)
+        coil = CoilCircularXSection(curve, I, R0)
         @test interpolated_force_per_unit_length(coil) / analytic_force_per_unit_length(coil) ≈ 0.8672096485513339
         # The reference value above is from the file
         # circular_coil_high_fidelity_over_analytic_force_rtol_1.0e-7_atol_1.0e-7_2023-02-17T02:57:13.639.dat
 
         # Aspect ratio 10:
-        coil = Coil(curve, I, R0 / 10)
+        coil = CoilCircularXSection(curve, I, R0 / 10)
         @test interpolated_force_per_unit_length(coil) / analytic_force_per_unit_length(coil) ≈ 0.9987209678389167
 
         # Aspect ratio 100:
-        coil = Coil(curve, I, R0 / 100)
+        coil = CoilCircularXSection(curve, I, R0 / 100)
         @test interpolated_force_per_unit_length(coil) / analytic_force_per_unit_length(coil) ≈ 0.9999873239392976
 
         # Aspect ratio 1e4:
-        coil = Coil(curve, I, R0 / 1e4)
+        coil = CoilCircularXSection(curve, I, R0 / 1e4)
         @test interpolated_force_per_unit_length(coil) / analytic_force_per_unit_length(coil) ≈ 1
 
 
