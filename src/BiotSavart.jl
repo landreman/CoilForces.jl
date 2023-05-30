@@ -1,9 +1,3 @@
-struct CoilCircularXSection
-    curve::Curve
-    current::Float64
-    aminor::Float64
-end
-
 Biot_savart_prefactor = μ0 / (4π)
 
 function d_B_d_ϕ(coil::CoilCircularXSection, ϕ, r_eval; regularization=0.0)
