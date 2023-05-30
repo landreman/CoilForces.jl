@@ -1,6 +1,6 @@
 Biot_savart_prefactor = μ0 / (4π)
 
-function d_B_d_ϕ(coil::CoilCircularXSection, ϕ, r_eval; regularization=0.0)
+function d_B_d_ϕ(coil::Coil, ϕ, r_eval; regularization=0.0)
     data = γ_and_derivative(coil.curve, ϕ)
     Δr = r_eval - data[:, 1]
     temp = normsq(Δr) + regularization
@@ -34,7 +34,7 @@ Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
 infinitesmally thin filament. Use quadrature on a fixed uniform grid with
 specified number of points, nϕ.
 """
-function B_filament_fixed(coil::CoilCircularXSection, r_eval, nϕ; regularization=0.0, drop_first_point=false)
+function B_filament_fixed(coil::Coil, r_eval, nϕ; regularization=0.0, drop_first_point=false)
     dϕ = 2π / nϕ
     B = [0.0, 0.0, 0.0]
     if drop_first_point
@@ -56,7 +56,7 @@ end
 Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
 infinitesmally thin filament. Use adaptive quadrature.
 """
-function B_filament_adaptive(coil::CoilCircularXSection, r_eval; regularization=0.0, reltol=1e-8, abstol=1e-14)
+function B_filament_adaptive(coil::Coil, r_eval; regularization=0.0, reltol=1e-8, abstol=1e-14)
     function Biot_Savart_integrand(ϕ0) 
         return d_B_d_ϕ(coil, ϕ0, r_eval, regularization=regularization)
     end
