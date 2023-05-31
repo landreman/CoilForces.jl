@@ -48,18 +48,10 @@ using Test
         wpa = WindingPackAngleZero()
         coil = CoilRectangularXSection(curve, current, a, b, wpa)
 
-        """
-        H(q, p) = (
-            q * q * atan(p / q)
-            + p * p * atan(q / p)
-            + p * q * log((q * q + p * p) / (a * b))
-        ) / (a * b)
-        """
-
-        H(q, p) = (
-            q * q * atan(p / q)
-            + p * p * atan(q / p)
-            + p * q * log(q * q + p * p)
+        H(q, p) = 0.25 * (
+            (a / b) * q * q * atan(b * p / (a * q))
+            + (b / a) * p * p * atan(a * q / (b * p))
+            + p * q * log(a * q * q / (4b) + b * p * p / (4a))
         )
 
         nu = 5
@@ -68,9 +60,9 @@ using Test
         A_analytic = zeros(nu, nv)
         for ju in 1:nu
             for jv in 1:nv
-                u = ((ju - 1) / (nu - 1) - 0.5) * a * 0.9999
-                v = ((jv - 1) / (nv - 1) - 0.5) * b * 0.9999
-                r_eval = [R0 - u, 0, v]
+                u = ((ju - 1) / (nu - 1) - 0.5) * 2 * 0.9999
+                v = ((jv - 1) / (nv - 1) - 0.5) * 2 * 0.9999
+                r_eval = [R0 - 0.5 * u * a, 0, 0.5 * v * b]
                 A_hifi = CoilForces.A_finite_thickness(
                     coil, 
                     r_eval;
@@ -79,12 +71,11 @@ using Test
                 )
 
                 # For the leading-order analytic result, see
-                # 20230528-02 Self-inductance for coils with rectangular cross-section.lyx
-                temp = -1 + log(64 * R0 * R0)
-                #temp = -1 + log(64 * R0 * R0 / (a * b))
+                # 20230531-01 Self-inductance for coils with rectangular cross-section.lyx
+                temp = -1 + log(64 * R0 * R0 / (a * b))
                 for su in [-1, 1]
                     for sv in [-1, 1]
-                        temp -= su * sv * H(u + su * a / 2, v + sv * b / 2) / (a * b)
+                        temp -= su * sv * H(u + su, v + sv)
                     end
                 end
                 A_analytic[ju, jv] = μ0 * current / (4π) * temp

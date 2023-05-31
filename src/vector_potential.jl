@@ -58,20 +58,23 @@ compute the integrand for evaluating A.
 
 See 20230528-02 Self-inductance for coils with rectangular cross-section.lyx
 """
-function A_finite_thickness_integrand(coil::CoilRectangularXSection, u_over_a, v_over_b, ϕ, r_eval, regularization=1e-100)
-    u = u_over_a * coil.a
-    v = v_over_b * coil.b
+function A_finite_thickness_integrand(coil::CoilRectangularXSection, u, v, ϕ, r_eval, regularization=1e-100)
+    u_a_over_2 = 0.5 * u * coil.a
+    v_b_over_2 = 0.5 * v * coil.b
     α = get_winding_pack_angle(coil.winding_pack_angle, ϕ)
     sinα, cosα = sincos(α)
     dℓdϕ, κ, τ, dr, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
-    @. dr += (u * cosα - v * sinα) * normal + (u * sinα + v * cosα) * binormal - r_eval
-    sqrtg = (1 + κ * (v * sinα - u * cosα)) * dℓdϕ
+    @. dr += (
+        (u_a_over_2 * cosα - v_b_over_2 * sinα) * normal 
+        + (u_a_over_2 * sinα + v_b_over_2 * cosα) * binormal - r_eval
+    )
+    sqrtg = (1 + κ * (v_b_over_2 * sinα - u_a_over_2 * cosα)) * dℓdϕ
     return (sqrtg * sqrt(1 / (normsq(dr) + regularization))) * tangent
 end
 
 """
 Compute the vector potential at a point with specified Cartesian
-coordinates. In this version of the function, the prefactor μ0 I / (4 π) is
+coordinates. In this version of the function, the prefactor μ0 I / (16 π) is
 not included!
 """
 function A_finite_thickness_normalized(coil::CoilRectangularXSection, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0)
@@ -79,8 +82,8 @@ function A_finite_thickness_normalized(coil::CoilRectangularXSection, r_eval; re
         return A_finite_thickness_integrand(coil, xp[1], xp[2], xp[3], r_eval)
     end
 
-    Biot_savart_xmin = [-0.5, -0.5, ϕ_shift]
-    Biot_savart_xmax = [0.5, 0.5, ϕ_shift + 2π]
+    Biot_savart_xmin = [-1, -1, ϕ_shift]
+    Biot_savart_xmax = [1, 1, ϕ_shift + 2π]
 
     val, err = hcubature(
         A_cubature_func, 
@@ -94,10 +97,10 @@ end
 
 """
 Compute the vector potential at a point with specified Cartesian
-coordinates. In this version of the function, the prefactor μ0 I / (4 π) is included.
+coordinates. In this version of the function, the prefactor μ0 I / (16 π) is included.
 """
 function A_finite_thickness(coil::CoilRectangularXSection, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0)
-    prefactor = μ0 * coil.current / (4 * π)
+    prefactor = μ0 * coil.current / (16 * π)
     return prefactor * A_finite_thickness_normalized(
         coil,
         r_eval;
