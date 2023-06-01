@@ -6,13 +6,34 @@ function analytic_inductance_for_circular_coil(coil::CoilCircularXSection)
     return μ0 * R * (log(8 * R / a) - 1.75)
 end
 
+function analytic_inductance_for_circular_coil(coil::CoilRectangularXSection)
+    # Assert that curve type is a CurveCircle:
+    coil.curve::CurveCircle
+    R = coil.curve.R0
+    a = coil.a
+    b = coil.b
+    
+    # For the formula that follows, see
+    # 20230531-01 Self-inductance for coils with rectangular cross-section.lyx
+    return (
+        μ0 * R * (log(8 * R / sqrt(a * b)) 
+            + (1.0 / 12)
+            + (a^4 - 6 * a^2 * b^2 + b^4) / (12 * a^2 * b^2) * log(a / b + b / a)
+            - b * b / (12 * a * a) * log(b / a)
+            - a * a / (12 * b * b) * log(a / b)
+            - (2.0 * b) / (3 * a) * atan(a / b)
+            - (2.0 * a) / (3 * b) * atan(b / a)
+    ))
+    
+end
+
 """
     inductance_filament_integrand(coil::CoilCircularXSection, regularization, ϕ, ϕp)
 
 Integrand for calculating the self-inductance using the regularized filament
 method. Note that the prefactor of μ0 / (4π) is not included.
 """
-function inductance_filament_integrand(curve, regularization, ϕ, ϕp)
+function inductance_filament_integrand(curve::Curve, regularization, ϕ, ϕp)
     data1 = γ_and_derivative(curve, ϕ)
     data2 = γ_and_derivative(curve, ϕp)
 
@@ -92,5 +113,50 @@ function inductance_finite_thickness(coil::CoilCircularXSection; reltol=1e-3, ab
     )
     A_prefactor = μ0 * coil.current / (4 * π * π)
     L_prefactor = 1 / (π * coil.current)
+    return A_prefactor * L_prefactor * val
+end
+
+"""
+Compute the self-inductance of a coil via a 6D integral, accounting for the
+finite thickness.
+"""
+function inductance_finite_thickness(coil::CoilRectangularXSection; reltol=1e-3, abstol=1e-5)
+
+    function inductance_cubature_func(xp)
+        u = xp[1]
+        v = xp[2]
+        ϕ = xp[3]
+        u_a_over_2 = 0.5 * u * coil.a
+        v_b_over_2 = 0.5 * v * coil.b
+        α = get_winding_pack_angle(coil.winding_pack_angle, ϕ)
+        sinα, cosα = sincos(α)
+        dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
+        sqrtg = (1 + κ * (v_b_over_2 * sinα - u_a_over_2 * cosα)) * dℓdϕ
+        r_eval = (r0
+            + (u_a_over_2 * cosα - v_b_over_2 * sinα) * normal 
+            + (u_a_over_2 * sinα + v_b_over_2 * cosα) * binormal
+        )
+        A = A_finite_thickness_normalized(
+            coil,
+            r_eval,
+            reltol=reltol,
+            abstol=abstol,
+            ϕ_shift=ϕ,
+        )
+        return sqrtg * dot(tangent, A)
+    end
+
+    inductance_xmin = [-1, -1, 0]
+    inductance_xmax = [1, 1, 2π]
+    
+    val, err = hcubature(
+        inductance_cubature_func, 
+        inductance_xmin,
+        inductance_xmax;
+        atol=abstol,
+        rtol=reltol
+    )
+    A_prefactor = μ0 * coil.current / (16 * π)
+    L_prefactor = 1 / (4 * coil.current)
     return A_prefactor * L_prefactor * val
 end
