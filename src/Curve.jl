@@ -68,3 +68,17 @@ function curve_length(c::Curve)
     )
     return val
 end
+
+function centroid(c::Curve)
+    n = 1000
+    x = zeros(3)
+    denominator = 0.0
+    for j in 1:n
+        ϕ = (j - 1) * 2π / n
+        data = γ_and_derivative(c, ϕ)
+        d_l_d_ϕ = norm(data[:, 2])
+        denominator += d_l_d_ϕ
+        x += d_l_d_ϕ * data[:, 1]
+    end
+    return (1 / denominator) * x
+end

@@ -188,4 +188,23 @@ end
         # Compare to a reference value from simsopt:
         @test curve_length(c) ≈ 2.054316451786527
     end
+
+    @testset "Centroid of a CurveCircle should be the origin" begin
+        c = CurveCircle(2.7)
+        @test CoilForces.centroid(c) ≈ zeros(3) atol=1e-14
+    end
+
+    @testset "Centroid of an ellipse should equal the 0-frequency modes" begin
+        x0 = 1.7
+        y0 = -0.3
+        z0 = -0.9
+
+        curve = CurveXYZFourier([x0, 0.2], [0, -0.1], [y0, -1.4], [0, 0.3], [z0, 1.1], [0, -0.2])
+        @test CoilForces.centroid(curve) ≈ [x0, y0, z0]
+    end
+
+    @testset "Check centroid of HSX coil against reference values from simsopt" begin
+        curve = get_curve("hsx", 1)
+        @test CoilForces.centroid(curve) ≈ [1.449921164520124, 0.080852101200521, 0.053270789528036]
+    end
 end
