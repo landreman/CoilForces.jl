@@ -1925,3 +1925,37 @@ function plot_inductance_a_scan()
     xlabel!("aminor")
     title!("|L_hifi - L_filament| / L_hifi")
 end
+
+function plot_inductance_convergence()
+    curve = get_curve("hsx", 1)
+    regularization = 0.01 ^ 2
+    n = 300
+
+    # Generate numbers of quadrature points to try:
+    nns = 30
+    ns = [Int(round(10 ^ x)) for x in range(1.0, 3.0, length=nns)]
+    
+    inductance_results = zeros(nns)
+    inductance_results_singularity_subtraction = zeros(nns)
+    for jn in 1:nns
+        n = ns[jn]
+        inductance_results[jn] = CoilForces.inductance_filament_fixed(curve, regularization, n)
+        inductance_results_singularity_subtraction[jn] = CoilForces.inductance_filament_fixed_singularity_subtraction(curve, regularization, n)
+    end
+    @show inductance_results
+    @show inductance_results_singularity_subtraction
+
+    scatter(
+        ns,
+        inductance_results,
+        xscale=:log10,
+        #yscale=:log10,
+        minorgrid=true,
+        label="original"
+    )
+    scatter!(
+        ns,
+        inductance_results_singularity_subtraction,
+        label="singularity subtraction"
+    )
+end

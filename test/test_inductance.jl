@@ -114,4 +114,25 @@ using Test
         @show L_hifi
         @test L_analytic ≈ L_hifi rtol=3e-3
     end
+
+    @testset "Regularized filament methods for inductance should be nearly independent of number of quadrature points" begin
+        curve = get_curve("hsx", 1)
+        regularization = 0.01 ^ 2
+        n = 300
+    
+        # Generate numbers of quadrature points to try:
+        nns = 4
+        ns = [Int(round(10 ^ x)) for x in range(2.0, 2.7, length=nns)]
+        
+        inductance_results = zeros(nns)
+        inductance_results_singularity_subtraction = zeros(nns)
+        for jn in 1:nns
+            n = ns[jn]
+            inductance_results[jn] = CoilForces.inductance_filament_fixed(curve, regularization, n)
+            inductance_results_singularity_subtraction[jn] = CoilForces.inductance_filament_fixed_singularity_subtraction(curve, regularization, n)
+        end
+        truth = inductance_results_singularity_subtraction[end]
+        @test inductance_results_singularity_subtraction ≈ truth * ones(nns) rtol=3e-5
+        @test inductance_results ≈ truth * ones(nns) rtol=1e-2    
+    end
 end

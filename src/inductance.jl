@@ -50,6 +50,32 @@ function inductance_filament_integrand(curve::Curve, regularization, ϕ, ϕp)
 end
 
 """
+    inductance_filament_integrand_singularity_subtraction(curve::Curve, regularization, ϕ, ϕp)
+
+Integrand for calculating the self-inductance using the regularized filament
+method. Note that the prefactor of μ0 / (4π) is not included.
+"""
+function inductance_filament_integrand_singularity_subtraction(curve::Curve, regularization, ϕ, ϕp)
+    data1 = γ_and_derivative(curve, ϕ)
+    data2 = γ_and_derivative(curve, ϕp)
+
+    position1 = @view data1[:, 1]
+    position2 = @view data2[:, 1]
+    r_prime1 = @view data1[:, 2]
+    r_prime2 = @view data2[:, 2]
+    norm_sq_1 = normsq(r_prime1)
+
+    return (
+        dot(r_prime1, r_prime2) / sqrt(
+            normsq(position1 - position2) + regularization
+        )
+        - norm_sq_1 / sqrt(
+            (2 - 2 * cos(ϕ - ϕp)) * norm_sq_1 + regularization
+        )
+    )
+end
+
+"""
     inductance_filament_adaptive(coil::CoilCircularXSection; reltol=1e-8, abstol=1e-14)
 
 Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
@@ -73,6 +99,60 @@ function inductance_filament_adaptive(coil::CoilCircularXSection; reltol=1e-8, a
         atol=abstol,
     )
     return val * μ0 / (4π)
+end
+
+"""
+    inductance_filament_fixed(coil, n, regularization)
+
+Evaluate the self-inductance for a coil in the approximation that the coil is an
+infinitesmally thin filament. Use a fixed number of quadrature points. The
+pre-factor μ0 / (4π) is included.
+"""
+function inductance_filament_fixed(curve, regularization, n)
+    dϕ = 2π / n
+    val = 0.0
+    for j1 in 1:n
+        ϕ = (j1 - 1) * 2π / n
+        for j2 in 1:n
+            ϕp = (j2 - 1) * 2π / n
+            val += inductance_filament_integrand(curve, regularization, ϕ, ϕp)
+        end
+    end
+    return val * μ0 / (4π) * dϕ * dϕ
+end
+
+"""
+    inductance_filament_fixed(coil, n, regularization)
+
+Evaluate the self-inductance for a coil in the approximation that the coil is an
+infinitesmally thin filament. Use a fixed number of quadrature points. The trick
+of subtracting and adding a term with similar singularity is used. The
+pre-factor μ0 / (4π) is included.
+"""
+function inductance_filament_fixed_singularity_subtraction(curve, regularization, n)
+    dϕ = 2π / n
+
+    # First, evaluate the double integral:
+    val2 = 0.0
+    for j1 in 1:n
+        ϕ = (j1 - 1) * 2π / n
+        for j2 in 1:n
+            ϕp = (j2 - 1) * 2π / n
+            val2 += inductance_filament_integrand_singularity_subtraction(curve, regularization, ϕ, ϕp)
+        end
+    end
+
+    # Now evaluate the single integral:
+    val1 = 0.0
+    for j in 1:n
+        ϕ = (j - 1) * 2π / n
+        data = γ_and_derivative(curve, ϕ)
+        r_prime = @view data[:, 2]
+        r_prime_norm = norm(r_prime)
+        val1 += r_prime_norm * log(64 * r_prime_norm * r_prime_norm / regularization)
+    end
+
+    return val1 * μ0 / (4π) * dϕ + val2 * μ0 / (4π) * dϕ * dϕ
 end
 
 """
