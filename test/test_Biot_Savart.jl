@@ -12,8 +12,8 @@ using Test
         curve = CurveCircle(R0)
         coils = [
             CoilCircularXSection(curve, I, 0.0)
-            CoilRectangularXSection(curve, I, 0.0, 0.0, WindingPackAngleZero())
-            CoilRectangularXSection(curve, I, 0.0, 0.0, WindingPackAngleFourier([0.0], [0.0]))
+            CoilRectangularXSection(curve, I, 0.0, 0.0, FrameCircle())
+            CoilRectangularXSection(curve, I, 0.0, 0.0, FrameCentroid(curve))
         ]
 
         nz = 100
@@ -82,8 +82,8 @@ using Test
         curve = CurveCircle(R0)
         coils = [
             CoilCircularXSection(curve, I, 0.0)
-            CoilRectangularXSection(curve, I, 0.0, 0.0, WindingPackAngleZero())
-            CoilRectangularXSection(curve, I, 0.0, 0.0, WindingPackAngleFourier([0.0], [0.0]))
+            CoilRectangularXSection(curve, I, 0.0, 0.0, FrameCircle())
+            CoilRectangularXSection(curve, I, 0.0, 0.0, FrameCentroid(curve))
         ]
 
         for coil in coils

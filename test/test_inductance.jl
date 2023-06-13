@@ -48,8 +48,8 @@ using Test
             ratio = 10.0 ^ log_ratio
             a = d * ratio
             b = d / ratio
-            coil1 = CoilRectangularXSection(curve, current, a, b, WindingPackAngleZero())
-            coil2 = CoilRectangularXSection(curve, current, b, a, WindingPackAngleZero())
+            coil1 = CoilRectangularXSection(curve, current, a, b, FrameCircle())
+            coil2 = CoilRectangularXSection(curve, current, b, a, FrameCircle())
             @test analytic_inductance_for_circular_coil(coil1) ≈ analytic_inductance_for_circular_coil(coil2)
         end
     end
@@ -65,7 +65,7 @@ using Test
             ratio = 10.0 ^ log_ratio
             a = d * ratio
             b = d / ratio
-            coil = CoilRectangularXSection(curve, current, a, b, WindingPackAngleZero())
+            coil = CoilRectangularXSection(curve, current, a, b, FrameCircle())
             # Expression from Rosa
             x = b / a
             Weinstein_formula = (
@@ -97,7 +97,7 @@ using Test
             @show ratio
             a = d * sqrt(ratio)
             b = d / sqrt(ratio)
-            coil = CoilRectangularXSection(curve, current, a, b, WindingPackAngleZero())
+            coil = CoilRectangularXSection(curve, current, a, b, FrameCircle())
             L_analytic[j_ratio] = analytic_inductance_for_circular_coil(coil)
             L_hifi[j_ratio] = inductance_finite_thickness(coil, reltol=tol, abstol=tol)
         end

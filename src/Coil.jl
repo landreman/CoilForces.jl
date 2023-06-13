@@ -11,48 +11,51 @@ struct CoilCircularXSection <: Coil
 end
 
 """
-There are two types for representing the winding pack angle: WindingPackAngleZero and WindingPackAngleFourier.
-These are both subtypes of an abstract type WindingPackAngle.
+There are two types for representing the winding pack angle: FrameCircle and FrameCentroid.
+These are both subtypes of an abstract type Frame.
 """
-abstract type WindingPackAngle end
+abstract type Frame end
 
-struct WindingPackAngleZero <: WindingPackAngle
+struct FrameCircle <: Frame
 end
 
-function get_winding_pack_angle(wpa::WindingPackAngleZero, ϕ)
-    return 0.0
+function get_frame(frame::FrameCircle, ϕ)
+    sinϕ, cosϕ = sincos(ϕ)
+    return [-cosϕ, -sinϕ, 0.0], [0.0, 0.0, 1.0]
 end
 
-struct WindingPackAngleFourier <: WindingPackAngle
-    cos_coeffs::Vector{Float64}
-    sin_coeffs::Vector{Float64}
-    n::Int
-    cos_m_factors::Vector{Float64}
-    sin_m_factors::Vector{Float64}
+struct FrameCentroid <: Frame
+    centroid::Vector{Float64}
 end
 
 """
-Constructor, which checks the lengths of the input vectors of Fourier amplitudes.
+Constructor, which takes a curve
 """
-function WindingPackAngleFourier(cos_coeffs, sin_coeffs) 
-    @assert length(cos_coeffs) == length(sin_coeffs)
-    n = length(cos_coeffs)
-    return WindingPackAngleFourier(
-        cos_coeffs, 
-        sin_coeffs, 
-        n, 
-        zeros(n),
-        zeros(n),
-    )
+function FrameCentroid(curve::Curve)
+    return FrameCentroid(centroid(curve))
 end
 
-function get_winding_pack_angle(wpa::WindingPackAngleFourier, ϕ)
-    for j in 1:wpa.n
-        wpa.sin_m_factors[j], wpa.cos_m_factors[j] = sincos((j - 1) * ϕ)
-    end
+function get_frame(frame::FrameCentroid, ϕ)
+    # Replace this content with the real function eventually
+    sinϕ, cosϕ = sincos(ϕ)
+    return [-cosϕ, -sinϕ, 0.0], [0.0, 0.0, 1.0]
+end
+
+struct FrameRotated <: Frame
+    frame::Frame
+    cos_angle::Float64
+    sin_angle::Float64
+end
+
+function FrameRotated(frame::Frame, angle)
+    return FrameRotated(frame, cos(angle), sin(angle))
+end
+
+function get_frame(frame::FrameRotated, ϕ)
+    p, q = get_frame(frame.frame, ϕ)
     return (
-        LinearAlgebra.dot(wpa.cos_m_factors, wpa.cos_coeffs) 
-        + LinearAlgebra.dot(wpa.sin_m_factors, wpa.sin_coeffs)
+        p * frame.cos_angle + q * frame.sin_angle,
+        -p * frame.sin_angle, q * frame_cos_angle
     )
 end
 
@@ -61,5 +64,13 @@ struct CoilRectangularXSection <: Coil
     current::Float64
     a::Float64
     b::Float64
-    winding_pack_angle::WindingPackAngle
+    frame::Frame
+end
+
+function get_κ1_κ2(p, q, normal, κ)
+    cos_α = dot(p, normal)
+    minus_sin_α = dot(q, normal)
+    κ1 = κ * cos_α
+    κ2 = κ * minus_sin_α
+    return κ1, κ2
 end

@@ -208,14 +208,13 @@ function inductance_finite_thickness(coil::CoilRectangularXSection; reltol=1e-3,
         ϕ = xp[3]
         u_a_over_2 = 0.5 * u * coil.a
         v_b_over_2 = 0.5 * v * coil.b
-        α = get_winding_pack_angle(coil.winding_pack_angle, ϕ)
-        sinα, cosα = sincos(α)
-        dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
-        sqrtg = (1 + κ * (v_b_over_2 * sinα - u_a_over_2 * cosα)) * dℓdϕ
-        r_eval = (r0
-            + (u_a_over_2 * cosα - v_b_over_2 * sinα) * normal 
-            + (u_a_over_2 * sinα + v_b_over_2 * cosα) * binormal
-        )
+        p, q = get_frame(coil.frame, ϕ)
+        dℓdϕ, κ, r0, tangent, normal = Frenet_frame_without_torsion(coil.curve, ϕ)
+        κ1, κ2 = CoilForces.get_κ1_κ2(p, q, normal, κ)
+        #sqrtg = (0.25 * coil.a * coil.b * dℓdϕ 
+        sqrtg = (dℓdϕ 
+            * (1 - u_a_over_2 * κ1 - v_b_over_2 * κ2))
+        r_eval = @. r0 + u_a_over_2 * p + v_b_over_2 * q
         A = A_finite_thickness_normalized(
             coil,
             r_eval,

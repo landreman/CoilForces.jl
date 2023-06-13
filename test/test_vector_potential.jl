@@ -45,8 +45,8 @@ using Test
         b = 0.003
         current = 1.7e5
         curve = CurveCircle(R0)
-        wpa = WindingPackAngleZero()
-        coil = CoilRectangularXSection(curve, current, a, b, wpa)
+        frame = FrameCircle()
+        coil = CoilRectangularXSection(curve, current, a, b, frame)
 
         H(q, p) = 0.25 * (
             (a / b) * q * q * atan(b * p / (a * q))
