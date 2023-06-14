@@ -19,7 +19,7 @@ abstract type Frame end
 struct FrameCircle <: Frame
 end
 
-function get_frame(frame::FrameCircle, ϕ)
+function get_frame(frame::FrameCircle, ϕ, position, tangent, normal)
     sinϕ, cosϕ = sincos(ϕ)
     return [-cosϕ, -sinϕ, 0.0], [0.0, 0.0, 1.0]
 end
@@ -35,10 +35,14 @@ function FrameCentroid(curve::Curve)
     return FrameCentroid(centroid(curve))
 end
 
-function get_frame(frame::FrameCentroid, ϕ)
-    # Replace this content with the real function eventually
-    sinϕ, cosϕ = sincos(ϕ)
-    return [-cosϕ, -sinϕ, 0.0], [0.0, 0.0, 1.0]
+function get_frame(frame::FrameCentroid, ϕ, position, tangent, normal)
+    # Section 3.1 of Singh (2020)
+    p = position - frame.centroid
+    temp = dot(p, tangent)
+    @. p -= temp * tangent
+    temp2 = norm(p)
+    p = (1 / temp2) * p
+    return p, cross(tangent, p)
 end
 
 struct FrameRotated <: Frame
@@ -51,8 +55,8 @@ function FrameRotated(frame::Frame, angle)
     return FrameRotated(frame, cos(angle), sin(angle))
 end
 
-function get_frame(frame::FrameRotated, ϕ)
-    p, q = get_frame(frame.frame, ϕ)
+function get_frame(frame::FrameRotated, ϕ, position, tangent, normal)
+    p, q = get_frame(frame.frame, ϕ, position, tangent, normal)
     return (
         p * frame.cos_angle + q * frame.sin_angle,
         -p * frame.sin_angle, q * frame_cos_angle
@@ -73,4 +77,32 @@ function get_κ1_κ2(p, q, normal, κ)
     κ1 = κ * cos_α
     κ2 = κ * minus_sin_α
     return κ1, κ2
+end
+
+"""
+For a coil with rectangular cross-section, save the shapes of the coil edges to
+a CSV file. This is useful for plotting the coil shape with an outside package
+such as mayavi.
+"""
+function save(coil::CoilRectangularXSection, filename, n)
+    u = [1, 1, -1, -1]
+    v = [1, -1, -1, 1]
+    open(filename, "w") do file
+        write(file, "x1, y1, z1, x2, y2, z2, x3, y3, z3, x4, y4, z4\n")
+        for j in 1:n
+            ϕ = 2π * j / n
+            dℓdϕ, κ, rc, tangent, normal = Frenet_frame_without_torsion(coil.curve, ϕ)
+            p, q = get_frame(coil.frame, ϕ, rc, tangent, normal)
+            first_point = true
+            for k in 1:4
+                r = rc + u[k] * p * coil.a / 2 + v[k] * q * coil.b / 2
+                if !first_point
+                    write(file, ", ")
+                end
+                write(file, "$(r[1]), $(r[2]), $(r[3])")
+                first_point = false
+            end
+            write(file, "\n")
+        end
+    end
 end

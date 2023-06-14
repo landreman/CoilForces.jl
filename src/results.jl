@@ -1959,3 +1959,11 @@ function plot_inductance_convergence()
         label="singularity subtraction"
     )
 end
+
+function save_HSX_rectangular_coil_shape()
+    curve = get_curve("hsx", 1)
+    a = 0.12
+    b = 0.06
+    coil = CoilRectangularXSection(curve, 1.0, a, b, FrameCentroid(curve))
+    CoilForces.save(coil, "/Users/mattland/Box/work23/20230614-01-hsx_rectangular_coil.dat", 200)
+end

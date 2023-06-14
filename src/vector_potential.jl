@@ -61,11 +61,9 @@ See 20230528-02 Self-inductance for coils with rectangular cross-section.lyx
 function A_finite_thickness_integrand(coil::CoilRectangularXSection, u, v, ϕ, r_eval, regularization=1e-100)
     u_a_over_2 = 0.5 * u * coil.a
     v_b_over_2 = 0.5 * v * coil.b
-    p, q = get_frame(coil.frame, ϕ)
     dℓdϕ, κ, dr, tangent, normal = Frenet_frame_without_torsion(coil.curve, ϕ)
+    p, q = get_frame(coil.frame, ϕ, dr, tangent, normal)
     κ1, κ2 = CoilForces.get_κ1_κ2(p, q, normal, κ)
-    #@show κ1, κ2
-    #sqrtg = (0.25 * coil.a * coil.b * dℓdϕ 
     sqrtg = (dℓdϕ 
         * (1 - u_a_over_2 * κ1 - v_b_over_2 * κ2))
     @. dr += u_a_over_2 * p + v_b_over_2 * q - r_eval
