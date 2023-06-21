@@ -1189,8 +1189,8 @@ function save_high_fidelity_B_vector_for_circular_coil_rectangular_xsection()
     R0 = 1.0
 
     # Cross-section dimensions [meters]
-    a = 1e-3
-    b = 2e-3
+    a = 2e-3
+    b = 1e-3
 
     # Total current [Amperes]
     I = 1.0
@@ -1263,7 +1263,7 @@ function plot_B_vector_for_circular_coil_rectangular_xsection(
     #@show high_fidelity_B
 
     # Set up grid of subplots
-    n_plots = 3 * 2
+    n_plots = 3 * 3
     n_cols = Int(ceil(0.9 * sqrt(n_plots)))
     n_rows = Int(ceil(n_plots / n_cols))
     @show n_plots, n_rows, n_cols
@@ -1302,28 +1302,30 @@ function plot_B_vector_for_circular_coil_rectangular_xsection(
         index = 1
         
         for jxyz in 1:3
-            #leading_order_solution = μ0 * I / (2π * aminor * aminor) * (
-            #    -normal[jxyz] * v2d + binormal[jxyz] * u2d
-            #)
-            for hifi in [true, false]
-                if hifi
-                    data = high_fidelity_B[:, :, jxyz]
-                else
-                    data = zeros(nz, nx)
-                    for jz in 1:nz
-                        for jx in 1:nx
-                            Bκ_p, Bκ_q = CoilForces.rectangular_xsection_Bκ(coil, κ1, κ2, u[jx], v[jz])
-                            Bκ_term = [-Bκ_p, 0, Bκ_q]
-                            data[jz, jx] = (
-                                B_regularized_plus_extra_term[jxyz] 
-                                + B0[jz, jx, jxyz]
-                                + Bκ_term[jxyz]
-                                )
-                        end
-                    end
+            B_analytic = zeros(nz, nx)
+            for jz in 1:nz
+                for jx in 1:nx
+                    Bκ_p, Bκ_q = CoilForces.rectangular_xsection_Bκ(coil, κ1, κ2, u[jx], v[jz])
+                    Bκ_term = [-Bκ_p, 0, Bκ_q]
+                    B_analytic[jz, jx] = (
+                        B_regularized_plus_extra_term[jxyz] 
+                        + B0[jz, jx, jxyz]
+                        + Bκ_term[jxyz]
+                        )
                 end
-                if subtract_leading_order
-                    data -= B0[:, :, jxyz]
+            end
+            B_hifi = high_fidelity_B[:, :, jxyz]
+            if subtract_leading_order
+                B_analytic -= B0[:, :, jxyz]
+                B_hifi -= B0[:, :, jxyz]
+            end
+            for variant in ["hifi", "analytic", "difference"]
+                if variant == "hifi"
+                    data = B_hifi
+                elseif variant == "analytic"
+                    data = B_analytic
+                elseif variant == "difference"
+                    data = B_hifi - B_analytic
                 end
 
                 #maxB = maximum(leading_order_solution)
@@ -1342,11 +1344,13 @@ function plot_B_vector_for_circular_coil_rectangular_xsection(
                 index += 1
                 title_str = @sprintf "B%s [Tesla]" xyz[jxyz]
                 #title!("B$(xyz[jxyz]) [Tesla] at ϕ=$(ϕ)")
-                if hifi
-                    title_str = "HiFi " * title_str
-                else
-                    title_str = "analytic " * title_str
-                end
+
+                #if hifi
+                #    title_str = "HiFi " * title_str
+                #else
+                #    title_str = "analytic " * title_str
+                #end
+                title_str = variant * " " * title_str
                 title!(title_str)
                 xlabel!("x [meters]")
                 ylabel!("z [meters]")

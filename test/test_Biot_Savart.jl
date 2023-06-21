@@ -440,4 +440,59 @@ using Test
         end
 
     end
+
+    @testset "For circular coil with rectangular x-section, compare hifi B vector to filament model" begin
+        R0 = 2.0
+        # Dimensions of the cross-section:
+        a = 0.002
+        b = 0.004
+        I = 1.0e4  # Total current [Amperes]
+        reltol = 1e-5
+        abstol = 1e-5
+        nx = 4
+        nz = 3
+
+        curve = CurveCircle(R0)
+        coil = CoilRectangularXSection(curve, I, a, b, FrameCircle())
+        r_eval = [R0, 0.0, 0.0]
+        B_regularized_plus_extra_term = B_filament_adaptive(coil, r_eval; regularization=CoilForces.compute_regularization(coil))
+        B_regularized_plus_extra_term[3] += μ0 * coil.current / (8π * R0) * (4 + 2 * log(2) + log(CoilForces.rectangular_xsection_δ(a, b)))
+        κ1 = 1 / R0
+        κ2 = 0.0
+
+        #####################################################
+        #####################################################
+
+        almost_one = 0.999  # Avoid singularity at the coil edge
+        for jx in 1:nx
+            u = ((jx - 1) / (nx - 1) * 2 - 1) * almost_one
+            x = R0 - 0.5 * u * a
+            #println("jx = $(jx) of $(nx).  u = $(u)  x = $(x)")
+            for jz = 1:nz
+                v = ((jz - 1) / (nz - 1) * 2 - 1) * almost_one
+                z = 0.5 * v * b
+                #println("  jz = $(jz) of $(nz).  v = $(v)  z = $(z)")
+    
+                # Evaluate vector B from a high fidelity calculation:
+                eval_point = [x, 0, z]
+                B_hifi = B_finite_thickness(coil, eval_point; reltol=reltol, abstol=abstol)
+
+                # Now evaluate vector B from the filament model:
+
+                B0_p, B0_q = CoilForces.rectangular_xsection_B0(coil, u, v)
+                B0 = [-B0_p, 0, B0_q]
+
+                Bκ_p, Bκ_q = CoilForces.rectangular_xsection_Bκ(coil, κ1, κ2, u, v)
+                Bκ_term = [-Bκ_p, 0, Bκ_q]
+
+                B_filament = B_regularized_plus_extra_term + B0 + Bκ_term
+
+                #println("    B_hifi:     $(B_hifi)")
+                #println("    B_filament: $(B_filament)")
+                #println("    diff:       $(B_hifi - B_filament)")
+                @test B_hifi ≈ B_filament atol=1e-12 rtol=3e-6
+            end
+        end
+
+    end
 end
