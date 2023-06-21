@@ -1178,8 +1178,8 @@ function save_high_fidelity_B_vector_for_circular_coil_2D()
 end
 
 function save_high_fidelity_B_vector_for_circular_coil_rectangular_xsection()
-    reltol = 1e-4
-    abstol = 1e-4
+    reltol = 1e-5
+    abstol = 1e-5
 
     # Resolution for evaluating B
     nz = 25
@@ -1228,7 +1228,7 @@ function save_high_fidelity_B_vector_for_circular_coil_rectangular_xsection()
 end
 
 function plot_B_vector_for_circular_coil_rectangular_xsection(
-    filename = "circular_coil_rectangular_xsection_B_vector_a0.001_b0.002_nx26_nz25_rtol0.0001_atol0.0001_2023-06-21T13.23.48.526.dat"
+    filename = "circular_coil_rectangular_xsection_B_vector_a0.001_b0.002_nx26_nz25_rtol1.0e-5_atol1.0e-5_2023-06-21T13.35.24.678.dat"
 )
     directory = "/Users/mattland/Box/work23/20230621-01-rectangular_xsection_B/"
     file = open(directory * filename, "r")
@@ -1283,6 +1283,8 @@ function plot_B_vector_for_circular_coil_rectangular_xsection(
     v2d = [v[jz] for jz in 1:nz, jx in 1:nx]
     x = R0 .- u * a / 2
     z = v * b / 2
+    κ1 = 1 / R0
+    κ2 = 0
 
     B0 = zeros(nz, nx, 3)
     for jx in 1:nx
@@ -1310,11 +1312,13 @@ function plot_B_vector_for_circular_coil_rectangular_xsection(
                     data = zeros(nz, nx)
                     for jz in 1:nz
                         for jx in 1:nx
+                            Bκ_p, Bκ_q = CoilForces.rectangular_xsection_Bκ(coil, κ1, κ2, u[jx], v[jz])
+                            Bκ_term = [-Bκ_p, 0, Bκ_q]
                             data[jz, jx] = (
                                 B_regularized_plus_extra_term[jxyz] 
                                 + B0[jz, jx, jxyz]
-                                #+ CoilForces.B_local(coil, curvature, normal[jxyz], binormal[jxyz], ρ[jb, jn], θ[jb, jn])
-                            )
+                                + Bκ_term[jxyz]
+                                )
                         end
                     end
                 end

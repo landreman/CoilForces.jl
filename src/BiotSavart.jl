@@ -301,3 +301,33 @@ function rectangular_xsection_B0(coil::CoilRectangularXSection, u, v)
     prefactor = μ0 * coil.current / (4π * coil.a * coil.b)
     return prefactor * B0_p, prefactor * B0_q
 end
+
+function rectangular_xsection_K(a, b, κ1, κ2, U, V)
+    temp = a * U * U / b + b * V * V / a
+    log_factor = log(temp)
+    K_p = (
+        -2 * U * V * (-κ2) * log_factor
+        - κ1 * temp * log_factor
+        + 4 * a * U * U * κ2 / b * atan(b * V / (a * U))
+    )
+    K_q = (
+        -2 * U * V * κ1 * log_factor
+        + κ2 * temp * log_factor
+        - 4 * b * V * V * κ1 / a * atan(a * U / (b * V))
+    )
+    return K_p, K_q
+end
+
+function rectangular_xsection_Bκ(coil::CoilRectangularXSection, κ1, κ2, u, v)
+    Bκ_p = 0
+    Bκ_q = 0
+    for su in [-1, 1]
+        for sv in [-1, 1]
+            K_p, K_q = rectangular_xsection_K(coil.a, coil.b, κ1, κ2, u - su, v - sv)
+            Bκ_p += su * sv * K_p
+            Bκ_q += su * sv * K_q
+        end
+    end
+    prefactor = μ0 * coil.current / (64π)
+    return prefactor * Bκ_p, prefactor * Bκ_q
+end
