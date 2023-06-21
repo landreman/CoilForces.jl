@@ -1,5 +1,15 @@
 Biot_savart_prefactor = μ0 / (4π)
 
+sqrt_1_over_e = 1 / √ℯ
+
+function compute_regularization(coil::CoilCircularXSection)
+    return coil.aminor * coil.aminor * sqrt_1_over_e
+end
+
+function compute_regularization(coil::CoilRectangularXSection)
+    return coil.a * coil.b * CoilForces.rectangular_xsection_δ(coil.a, coil.b)
+end
+
 function d_B_d_ϕ(coil::Coil, ϕ, r_eval; regularization=0.0)
     data = γ_and_derivative(coil.curve, ϕ)
     Δr = r_eval - data[:, 1]
@@ -12,7 +22,7 @@ end
 ϕ: curve parameter for the incremental current that contributes to B.
 ϕ0: curve parameter at which we are evaluating B.
 """
-function d_B_d_ϕ_singularity_subtracted(coil::CoilCircularXSection, ϕ, r_eval, regularization, ϕ0, r_prime_prime_cross_r_prime, dℓdϕ_squared)
+function d_B_d_ϕ_singularity_subtracted(coil::Coil, ϕ, r_eval, regularization, ϕ0, r_prime_prime_cross_r_prime, dℓdϕ_squared)
     data = γ_and_derivative(coil.curve, ϕ)
     Δr = r_eval - data[:, 1]
     temp = normsq(Δr) + regularization
@@ -64,17 +74,21 @@ function B_filament_adaptive(coil::Coil, r_eval; regularization=0.0, reltol=1e-8
     return val
 end
 
-function singularity_term(coil::CoilCircularXSection, ϕ)
+"""
+This function computes the term to be added back in the singularity-subtraction
+trick for regularized Biot-Savart, i.e. the piece that was integrated analytically.
+"""
+function singularity_term(coil::Coil, ϕ)
     data = γ_and_2_derivatives(coil.curve, ϕ)
     r_prime = data[:, 2]
     dϕdℓ = 1 / norm(r_prime)
-    δ = coil.aminor * coil.aminor / sqrt(ℯ)
-    return (μ0 * coil.current / (4π) * dϕdℓ * dϕdℓ * dϕdℓ * (1 + log(sqrt(δ) * dϕdℓ / 8)) 
+    return (μ0 * coil.current / (8π) * dϕdℓ * dϕdℓ * dϕdℓ 
+        * (2 + log(compute_regularization(coil) * dϕdℓ * dϕdℓ / 64)) 
         * cross(data[:, 3], r_prime))
 end
 
 """
-    B_singularity_subtraction_fixed(coil::CoilCircularXSection, ϕ0, nϕ)
+    B_singularity_subtraction_fixed(coil::Coil, ϕ0, nϕ)
 
 Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
 infinitesmally thin filament. Use quadrature on a fixed uniform grid with
@@ -82,7 +96,7 @@ specified number of points, nϕ.
 
 ϕ0: curve parameter at which to evaluate B.
 """
-function B_singularity_subtraction_fixed(coil::CoilCircularXSection, ϕ0, nϕ)
+function B_singularity_subtraction_fixed(coil::Coil, ϕ0, nϕ)
     dϕ = 2π / nϕ
     B = [0.0, 0.0, 0.0]
     
@@ -93,10 +107,10 @@ function B_singularity_subtraction_fixed(coil::CoilCircularXSection, ϕ0, nϕ)
     
     dℓdϕ_squared = normsq(r_prime)
     r_prime_prime_cross_r_prime = cross(r_prime_prime, r_prime)
-    δ = coil.aminor * coil.aminor / sqrt(ℯ)
+    regularization_to_use = compute_regularization(coil)
     for j in 1:nϕ
         ϕ = (j - 1) * dϕ
-        B += d_B_d_ϕ_singularity_subtracted(coil, ϕ, r_eval, δ, ϕ0, r_prime_prime_cross_r_prime, dℓdϕ_squared)
+        B += d_B_d_ϕ_singularity_subtracted(coil, ϕ, r_eval, regularization_to_use, ϕ0, r_prime_prime_cross_r_prime, dℓdϕ_squared)
     end
     B = B * dϕ + singularity_term(coil, ϕ0)
     return B
@@ -117,6 +131,25 @@ function B_finite_thickness_integrand(coil::CoilCircularXSection, ρ, θ, ϕ, r_
     temp = 1 / (normsq(dr) + regularization)
     #temp = 1 / (normsq(dr) + 1e-200)
     sqrtg = (1 - κ * r * cosθ) * ρ * dℓdϕ
+    return (sqrtg * temp * sqrt(temp)) * cross(dr, tangent)
+end
+
+"""
+For a finite-thickness coil of arbitrary smooth shape, 
+compute the integrand for evaluating B.
+"""
+function B_finite_thickness_integrand(coil::CoilRectangularXSection, u, v, ϕ, r_eval, regularization=1e-100)
+    u_a_over_2 = 0.5 * u * coil.a
+    v_b_over_2 = 0.5 * v * coil.b
+    dℓdϕ, κ, dr, tangent, normal = Frenet_frame_without_torsion(coil.curve, ϕ)
+    p, q = get_frame(coil.frame, ϕ, dr, tangent, normal)
+    κ1, κ2 = CoilForces.get_κ1_κ2(p, q, normal, κ)
+    # Note that sqrtg in the next line does not contain ab/4. We consider that
+    # factor to be in front of the overall integral.
+    sqrtg = (dℓdϕ 
+        * (1 - u_a_over_2 * κ1 - v_b_over_2 * κ2))
+    @. dr += u_a_over_2 * p + v_b_over_2 * q - r_eval
+    temp = 1 / (normsq(dr) + regularization)
     return (sqrtg * temp * sqrt(temp)) * cross(dr, tangent)
 end
 
@@ -164,6 +197,29 @@ end
 
 """
 Compute the magnetic field vector at a point with specified Cartesian
+coordinates. In this version of the function, the prefactor μ0 I / (16 π) is
+not included!
+"""
+function B_finite_thickness_normalized(coil::CoilRectangularXSection, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0)
+    function Biot_savart_cubature_func(xp)
+        return B_finite_thickness_integrand(coil, xp[1], xp[2], xp[3], r_eval)
+    end
+
+    Biot_savart_xmin = [-1, -1, ϕ_shift]
+    Biot_savart_xmax = [1, 1, ϕ_shift + 2π]
+
+    val, err = hcubature(
+        Biot_savart_cubature_func, 
+        Biot_savart_xmin,
+        Biot_savart_xmax;
+        atol=abstol,
+        rtol=reltol,
+    )
+    return val
+end
+
+"""
+Compute the magnetic field vector at a point with specified Cartesian
 coordinates. In this version of the function, the prefactor μ0 I / (4 π^2) is
 not included. Also, Siena's trick of subtracting the contribution from the
 best-fit circular coil is used.
@@ -198,6 +254,16 @@ included.
 function B_finite_thickness(coil::CoilCircularXSection, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, θ_shift=0.0)
     prefactor = coil.current / (π) * Biot_savart_prefactor
     return prefactor * B_finite_thickness_normalized(coil, r_eval; reltol=reltol, abstol=abstol, ϕ_shift=ϕ_shift, θ_shift=θ_shift)
+end
+
+"""
+Compute the magnetic field vector at a point with specified Cartesian
+coordinates. In this version of the function, the prefactor μ0 I / (16 π) is
+included.
+"""
+function B_finite_thickness(coil::CoilRectangularXSection, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0)
+    prefactor = μ0 * coil.current / (16 * π)
+    return prefactor * B_finite_thickness_normalized(coil, r_eval; reltol=reltol, abstol=abstol, ϕ_shift=ϕ_shift)
 end
 
 """

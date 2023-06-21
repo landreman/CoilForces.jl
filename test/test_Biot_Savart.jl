@@ -39,7 +39,7 @@ using Test
         
     end
 
-    @testset "For B along the z axis for a circular coil, compare to analytic formula. Finite thickness coil." begin
+    @testset "For B along the z axis for a circular coil, compare to analytic formula. Finite thickness circular-cross-section coil." begin
         # Major radius of coil [meters]
         R0 = 2.3
 
@@ -65,6 +65,41 @@ using Test
         @test maximum(abs.(B_numerical[1, :])) < 1e-10
         @test maximum(abs.(B_numerical[2, :])) < 1e-10
         @test maximum(abs.(B_numerical[3, :] ./ Bz_analytic .- 1)) < 1e-7
+        
+    end
+
+    @testset "For B along the z axis for a circular coil, compare to analytic formula. Finite thickness rectangular-cross-section coil." begin
+        # Major radius of coil [meters]
+        R0 = 2.3
+
+        # Total current [Amperes]
+        I = 3.1e6
+
+        # Coil cross-section dimensions
+        a = 0.001
+        b = 0.0017
+
+        curve = CurveCircle(R0)
+        coils = [
+            CoilRectangularXSection(curve, I, a, b, FrameCircle()),
+            CoilRectangularXSection(curve, I, a, b, FrameCentroid(curve)),
+        ]
+
+        nz = 10
+        z = collect(range(-5, 5, length=nz))
+        Bz_analytic = @. 0.5 * μ0 * I * R0^2 / ((R0^2 + z^2) ^ 1.5)
+        B_numerical = zeros(3, nz)
+        nϕ = 100
+        for coil in coils
+            for j in 1:nz
+                r_eval = [0, 0, z[j]]
+                B_numerical[:, j] = B_finite_thickness(coil, r_eval, reltol=1e-7, abstol=1e-8)
+            end
+            # Bx and By should be 0:
+            @test maximum(abs.(B_numerical[1, :])) < 1e-10
+            @test maximum(abs.(B_numerical[2, :])) < 1e-10
+            @test maximum(abs.(B_numerical[3, :] ./ Bz_analytic .- 1)) < 1e-7
+        end
         
     end
 
@@ -109,7 +144,7 @@ using Test
         end
     end
 
-    @testset "For B from circular coil, compare to reference values from simsopt at specified points. Finite thickness coil." begin
+    @testset "For B from circular coil, compare to reference values from simsopt at specified points. Finite thickness circular-cross-section coil." begin
         # Compare a few points against the elliptic integral formula for an
         # infinitesmally thin coil, as implemented in simsopt.field.CircularCoil
         # 20221016_05_Benchmark_finite_thickness_circular_coil
@@ -143,6 +178,46 @@ using Test
         @test maximum(abs.(B_julia ./ B_simsopt .- 1)) < 1e-7
     end
 
+    @testset "For B from circular coil, compare to reference values from simsopt at specified points. Finite thickness rectangular-cross-section coil." begin
+        # Compare a few points against the elliptic integral formula for an
+        # infinitesmally thin coil, as implemented in simsopt.field.CircularCoil
+        # 20221016_05_Benchmark_finite_thickness_circular_coil
+
+        # Major radius of coil [meters]
+        R0 = 2.3
+
+        # Total current [Amperes]
+        I = 3.1e6
+
+        # Coil cross-section dimensions [meters]
+        a = 0.0017
+        b = 0.001
+
+        curve = CurveCircle(R0)
+        coils = [
+            CoilRectangularXSection(curve, I, a, b, FrameCircle()),
+            CoilRectangularXSection(curve, I, a, b, FrameCentroid(curve)),
+        ]
+
+        for coil in coils
+            r_eval = [1.8, 0.7, 0.4]
+            B_julia = B_finite_thickness(coil, r_eval, reltol=1e-5, abstol=1e-7)
+            B_simsopt = [0.797460697498886, 0.3101236045829,   1.210433050274526]
+            #println("point 1, julia:  ", B_julia)
+            #println("point 1, simsopt:", B_simsopt)
+            #println("point 1, simsopt vs julia:", maximum(abs.(B_julia ./ B_simsopt .- 1)))
+            @test maximum(abs.(B_julia ./ B_simsopt .- 1)) < 1e-6
+
+            r_eval = [-3.5, -2.7, -1.4]
+            B_julia = B_finite_thickness(coil, r_eval, reltol=1e-6, abstol=1e-7)
+            B_simsopt = [0.051493866798744,  0.039723840101888, -0.037540647636196]
+            #println("point 1, julia:  ", B_julia)
+            #println("point 1, simsopt:", B_simsopt)
+            #println("point 1, simsopt vs julia:", maximum(abs.(B_julia ./ B_simsopt .- 1)))
+            @test maximum(abs.(B_julia ./ B_simsopt .- 1)) < 2e-7
+        end
+    end
+
     @testset "For B from HSX coils, compare to reference values from simsopt at specified points" begin
         # Compare to reference values from simsopt computed by
         # 20221224-01-HSX_BiotSavart_simsopt_julia_benchmark
@@ -163,7 +238,22 @@ using Test
 
         for jcoil in 1:6
             curve = get_curve("hsx", jcoil)
+            B_simsopt = data[jcoil, :]
+
+            # First check circular x-section:
             coil = CoilCircularXSection(curve, current, aminor)
+            B_fixed = B_filament_fixed(coil, r_eval, 1600)
+            B_adaptive = B_filament_adaptive(coil, r_eval)
+            B_thick = B_finite_thickness(coil, r_eval, reltol=1e-5, abstol=1e-7)
+            #println("point 1, adaptive:", B_adaptive)
+            #println("point 1, fixed vs adaptive:", maximum(abs.(B_fixed ./ B_adaptive .- 1)))
+            #println("point 1, simsopt vs adaptive:", maximum(abs.(B_simsopt ./ B_adaptive .- 1)))
+            @test maximum(abs.(B_fixed ./ B_adaptive .- 1)) < 1e-9
+            @test maximum(abs.(B_adaptive ./ B_simsopt .- 1)) < 1e-12
+            @test maximum(abs.(B_thick ./ B_simsopt .- 1)) < 1e-5
+
+            # Now check rectangular x-section:
+            coil = CoilRectangularXSection(curve, current, aminor, aminor * 1.3, FrameCentroid(curve))
             B_fixed = B_filament_fixed(coil, r_eval, 1600)
             B_adaptive = B_filament_adaptive(coil, r_eval)
             B_thick = B_finite_thickness(coil, r_eval, reltol=1e-5, abstol=1e-7)
@@ -217,7 +307,7 @@ using Test
 
     end
 
-    @testset "Force from the singularity-subtraction method should match the force from direct quadrature of regularized Biot-Savart" begin
+    @testset "Force from the singularity-subtraction method should match the force from direct quadrature of regularized Biot-Savart. Circular x-section." begin
         current = -1.5e5
     
         # minor radius of conductor:
@@ -242,16 +332,56 @@ using Test
                 tangent0 = tangent(curve, ϕ0)
 
                 B = B_filament_fixed(coil, r_eval, nϕ, regularization=δ)
-                force_per_unit_length_original_fixed = current * norm(cross(tangent0, B))
+                force_per_unit_length_original_fixed = current * cross(tangent0, B)
         
                 B = B_filament_adaptive(coil, r_eval, regularization=δ)
-                force_per_unit_length_original_adaptive = current * norm(cross(tangent0, B))
+                force_per_unit_length_original_adaptive = current * cross(tangent0, B)
         
                 B = B_singularity_subtraction_fixed(coil, ϕ0, nϕ)
-                force_per_unit_length_singularity_subtraction = current * norm(cross(tangent0, B))
+                force_per_unit_length_singularity_subtraction = current * cross(tangent0, B)
 
                 @test force_per_unit_length_original_fixed ≈ force_per_unit_length_original_adaptive
                 @test force_per_unit_length_original_adaptive ≈ force_per_unit_length_singularity_subtraction rtol=1e-5
+            end
+        end
+    end
+
+    @testset "Force from the singularity-subtraction method should match the force from direct quadrature of regularized Biot-Savart. Rectangular x-section." begin
+        current = -1.5e5
+    
+        # cross-section dimensions:
+        a = 0.001
+        b = 0.0016
+
+        regularization = a * b * CoilForces.rectangular_xsection_δ(a, b)
+
+        # Number of points along each coil at which to evaluate the force:
+        nϕ0 = 5
+
+        # Number of points to use for quadrature:
+        nϕ = 10000
+
+        for coil_num in 1:6
+            curve = get_curve("hsx", coil_num)
+            coil = CoilRectangularXSection(curve, current, a, b, FrameCentroid(curve))
+
+            # ϕ0 = point at which to evaluate the force:
+            for ϕ0 in ((1:nϕ0) .- 1) * 2π / nϕ0
+    
+                r_eval = γ(curve, ϕ0)
+                tangent0 = tangent(curve, ϕ0)
+
+                B = B_filament_fixed(coil, r_eval, nϕ, regularization=regularization)
+                force_per_unit_length_original_fixed = current * cross(tangent0, B)
+        
+                B = B_filament_adaptive(coil, r_eval, regularization=regularization)
+                force_per_unit_length_original_adaptive = current * cross(tangent0, B)
+        
+                B = B_singularity_subtraction_fixed(coil, ϕ0, nϕ)
+                force_per_unit_length_singularity_subtraction = current * cross(tangent0, B)
+
+                @test force_per_unit_length_original_fixed ≈ force_per_unit_length_original_adaptive rtol=1e-6
+                @test force_per_unit_length_original_adaptive ≈ force_per_unit_length_singularity_subtraction rtol=1e-6
             end
         end
     end
@@ -266,7 +396,7 @@ using Test
         @test CoilForces.B_finite_thickness_integrand(coil, ρ, θ, ϕ, r_eval) ≈ CoilForces.B_finite_thickness_integrand_sincos(coil, ρ, cos(θ), sin(θ), ϕ, r_eval)
     end
 
-    @testset "For circular coil, compare hifi B vector to filament model" begin
+    @testset "For circular coil with circular x-section, compare hifi B vector to filament model" begin
         aminor = 0.01  # Minor radius of coil [meters]
         I = 1.0e4  # Total current [Amperes]
         reltol = 1e-4
