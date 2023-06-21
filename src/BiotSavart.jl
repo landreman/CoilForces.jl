@@ -279,3 +279,25 @@ function B_local(coil::CoilCircularXSection, curvature, normal, binormal, ρ, θ
         )
     )
 end
+
+function rectangular_xsection_G(p, q)
+    return q * atan(p / q) + 0.5 * p * log(1 + q * q / (p * p))
+end
+
+"""
+Returns the field of an infinite straight wire with rectangular cross-section
+"""
+function rectangular_xsection_B0(coil::CoilRectangularXSection, u, v)
+    B0_q = 0
+    B0_p = 0
+    for su in [-1, 1]
+        adu = coil.a * (u - su)
+        for sv in [-1, 1]
+            bdv = coil.b * (v - sv)
+            B0_q += su * sv * rectangular_xsection_G(bdv, adu)
+            B0_p -= su * sv * rectangular_xsection_G(adu, bdv)
+        end
+    end
+    prefactor = μ0 * coil.current / (4π * coil.a * coil.b)
+    return prefactor * B0_p, prefactor * B0_q
+end

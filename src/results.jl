@@ -1177,6 +1177,189 @@ function save_high_fidelity_B_vector_for_circular_coil_2D()
     
 end
 
+function save_high_fidelity_B_vector_for_circular_coil_rectangular_xsection()
+    reltol = 1e-4
+    abstol = 1e-4
+
+    # Resolution for evaluating B
+    nz = 25
+    nx = 26
+
+    # Major radius of coil [meters]
+    R0 = 1.0
+
+    # Cross-section dimensions [meters]
+    a = 1e-3
+    b = 2e-3
+
+    # Total current [Amperes]
+    I = 1.0
+
+    curve = CurveCircle(R0)
+    coil = CoilRectangularXSection(curve, I, a, b, FrameCircle())
+    high_fidelity_B = zeros(nz, nx, 3)
+    for jz in 1:nz
+        z = ((jz - 1.0) / (nz - 1) - 0.5) * b
+        println("z: $(z)")
+        for jx = 1:nx
+            x = R0 + ((jx - 1.0) / (nx - 1) - 0.5) * a
+            B = B_finite_thickness(coil, [x, 0, z]; reltol=reltol, abstol=abstol)
+            high_fidelity_B[jz, jx, :] = B
+            println("  x: $(x)  B: $(B)")
+        end
+    end
+    @show high_fidelity_B
+
+    directory = "/Users/mattland/Box/work23/20230621-01-rectangular_xsection_B/"
+    datestr = replace("$(Dates.now())", ":" => ".")
+    filename = "circular_coil_rectangular_xsection_B_vector_a$(a)_b$(b)_nx$(nx)_nz$(nz)_rtol$(reltol)_atol$(abstol)_$(datestr).dat"
+    open(directory * filename, "w") do file
+        write(file, "R0, a, b, I, reltol, abstol, nx, nz\n")
+        write(file, "$(R0), $(a), $(b), $(I), $(reltol), $(abstol), $(nx), $(nz)\n")
+        for jxyz in 1:3
+            for jz in 1:nz
+                for jx = 1:nx
+                    write(file, "$(high_fidelity_B[jz, jx, jxyz])\n")
+                end
+            end
+        end
+    end
+    
+end
+
+function plot_B_vector_for_circular_coil_rectangular_xsection(
+    filename = "circular_coil_rectangular_xsection_B_vector_a0.001_b0.002_nx26_nz25_rtol0.0001_atol0.0001_2023-06-21T13.23.48.526.dat"
+)
+    directory = "/Users/mattland/Box/work23/20230621-01-rectangular_xsection_B/"
+    file = open(directory * filename, "r")
+
+    # Read and parse header:
+    line = readline(file)
+    line = readline(file)
+    splitline = split(line, ",")
+    R0 = parse(Float64, splitline[1])
+    a = parse(Float64, splitline[2])
+    b = parse(Float64, splitline[3])
+    I = parse(Float64, splitline[4])
+    reltol = parse(Float64, splitline[5])
+    abstol = parse(Float64, splitline[6])
+    nx = parse(Int, splitline[7])
+    nz = parse(Int, splitline[8])
+    println("Read nx=$(nx), nz=$(nz)")
+
+    curve = CurveCircle(R0)
+    coil = CoilRectangularXSection(curve, I, a, b, FrameCircle())
+
+    # Now read the main B data:
+    high_fidelity_B = zeros(nz, nx, 3)
+    for jxyz in 1:3
+        for jz in 1:nz
+            for jx = 1:nx
+                high_fidelity_B[jz, jx, jxyz] = parse(Float64, readline(file))
+            end
+        end
+    end
+    close(file)
+    #@show high_fidelity_B
+
+    # Set up grid of subplots
+    n_plots = 3 * 2
+    n_cols = Int(ceil(0.9 * sqrt(n_plots)))
+    n_rows = Int(ceil(n_plots / n_cols))
+    @show n_plots, n_rows, n_cols
+    xyz = "xyz"
+
+    layout = (n_rows, n_cols)
+    plots = Array{Any, 1}(undef, n_plots)
+    scalefontsizes()
+    scalefontsizes(0.5)
+
+    Plots.gr_cbar_width[] = 0.005
+
+    almost_one = 1 - (1e-6)
+    u = [-((jx - 1) / (nx - 1) * 2 - 1) * almost_one for jx in 1:nx]
+    v = [((jz - 1) / (nz - 1) * 2 - 1) * almost_one for jz in 1:nz]
+    u2d = [u[jx] for jz in 1:nz, jx in 1:nx]
+    v2d = [v[jz] for jz in 1:nz, jx in 1:nx]
+    x = R0 .- u * a / 2
+    z = v * b / 2
+
+    B0 = zeros(nz, nx, 3)
+    for jx in 1:nx
+        for jz in 1:nz
+            B0_p, B0_q = CoilForces.rectangular_xsection_B0(coil, u[jx], v[jz])
+            B0[jz, jx, 1] = -B0_p
+            B0[jz, jx, 3] = B0_q
+        end
+    end
+
+    position = [R0, 0.0, 0.0]
+    B_regularized_plus_extra_term = B_filament_adaptive(coil, position; regularization=compute_regularization(coil))
+    B_regularized_plus_extra_term[3] += μ0 * coil.current / (8π * R0) * (4 + 2 * log(2) + log(CoilForces.rectangular_xsection_δ(a, b)))
+    for subtract_leading_order in [false, true]
+        index = 1
+        
+        for jxyz in 1:3
+            #leading_order_solution = μ0 * I / (2π * aminor * aminor) * (
+            #    -normal[jxyz] * v2d + binormal[jxyz] * u2d
+            #)
+            for hifi in [true, false]
+                if hifi
+                    data = high_fidelity_B[:, :, jxyz]
+                else
+                    data = zeros(nz, nx)
+                    for jz in 1:nz
+                        for jx in 1:nx
+                            data[jz, jx] = (
+                                B_regularized_plus_extra_term[jxyz] 
+                                + B0[jz, jx, jxyz]
+                                #+ CoilForces.B_local(coil, curvature, normal[jxyz], binormal[jxyz], ρ[jb, jn], θ[jb, jn])
+                            )
+                        end
+                    end
+                end
+                if subtract_leading_order
+                    data -= B0[:, :, jxyz]
+                end
+
+                #maxB = maximum(leading_order_solution)
+                #minB = minimum(leading_order_solution)
+                #if maxB == minB
+                #    maxB += 1e-10
+                #end
+                #contour_levels = collect(range(minB, maxB, length=25))
+                #@show contour_levels
+
+                @show 
+                plots[index] = contour(x, z, data,
+                    aspect_ratio = :equal,
+                    #levels=contour_levels,
+                )
+                index += 1
+                title_str = @sprintf "B%s [Tesla]" xyz[jxyz]
+                #title!("B$(xyz[jxyz]) [Tesla] at ϕ=$(ϕ)")
+                if hifi
+                    title_str = "HiFi " * title_str
+                else
+                    title_str = "analytic " * title_str
+                end
+                title!(title_str)
+                xlabel!("x [meters]")
+                ylabel!("z [meters]")
+            end
+        end
+        plot(plots..., layout=layout, dpi=100, size=(1100, 850))
+        if subtract_leading_order
+            filename_extension = "_without_leading_order"
+        else
+            filename_extension = ""
+        end
+        #annotate!((0., 0., directory * filename), subplot=1)
+        savefig(directory * "circular_coil_rectangular_xsection_B_vector" * filename_extension * ".pdf")
+    end
+
+end
+
 function save_high_fidelity_B_vector_for_HSX_coil(;
     aminor = 0.01,  # Minor radius of coil [meters]
     I = 1.0e4,  # Total current [Amperes]
