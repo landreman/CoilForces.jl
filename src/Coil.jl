@@ -20,8 +20,7 @@ struct FrameCircle <: Frame
 end
 
 function get_frame(frame::FrameCircle, ϕ, position, tangent, normal)
-    sinϕ, cosϕ = sincos(ϕ)
-    return [-cosϕ, -sinϕ, 0.0], [0.0, 0.0, 1.0]
+    return normal, cross(tangent, normal)
 end
 
 struct FrameCentroid <: Frame
