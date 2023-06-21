@@ -17,12 +17,8 @@ function analytic_inductance_for_circular_coil(coil::CoilRectangularXSection)
     # 20230531-01 Self-inductance for coils with rectangular cross-section.lyx
     return (
         μ0 * R * (log(8 * R / sqrt(a * b)) 
-            + (1.0 / 12)
-            + (a^4 - 6 * a^2 * b^2 + b^4) / (12 * a^2 * b^2) * log(a / b + b / a)
-            - b * b / (12 * a * a) * log(b / a)
-            - a * a / (12 * b * b) * log(a / b)
-            - (2.0 * b) / (3 * a) * atan(a / b)
-            - (2.0 * a) / (3 * b) * atan(b / a)
+            + (1.0 / 12) 
+            - CoilForces.rectangular_xsection_k(a, b) / 2
     ))
     
 end

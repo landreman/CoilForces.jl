@@ -106,3 +106,17 @@ function save(coil::CoilRectangularXSection, filename, n)
         end
     end
 end
+
+function rectangular_xsection_k(a, b)
+    return (
+        -(a^4 - 6 * a^2 * b^2 + b^4) / (6 * a^2 * b^2) * log(a / b + b / a)
+        + b * b / (6 * a * a) * log(b / a)
+        + a * a / (6 * b * b) * log(a / b)
+        + (4.0 * b) / (3 * a) * atan(a / b)
+        + (4.0 * a) / (3 * b) * atan(b / a)
+    )
+end
+
+function rectangular_xsection_δ(a, b)
+    return exp(-(25.0 / 6) + rectangular_xsection_k(a, b))
+end

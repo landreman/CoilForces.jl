@@ -49,3 +49,28 @@ using Test
     end
 
 end
+
+@testset "Test special functions for rectangular cross-section" begin
+    @testset "Check k for square cross-section" begin
+        for a in [0.2, 1, 3.3]
+            @test CoilForces.rectangular_xsection_k(a, a) ≈ 2.556493222766492
+        end
+    end
+
+    @testset "Check δ for square cross-section" begin
+        for a in [0.2, 1, 3.3]
+            @test CoilForces.rectangular_xsection_δ(a, a) ≈ 0.19985294779417703
+        end
+    end
+
+    @testset "k and δ for rectangular x-section should be unchanged if we swap a and b" begin
+        n_ratio = 10
+        d = 0.01  # Geometric mean of a and b
+        for ratio in [0.1, 3.7]
+            a = d * ratio
+            b = d / ratio
+            @test CoilForces.rectangular_xsection_k(a, b) ≈ CoilForces.rectangular_xsection_k(b, a)
+            @test CoilForces.rectangular_xsection_δ(a, b) ≈ CoilForces.rectangular_xsection_δ(b, a)
+        end
+    end
+end
