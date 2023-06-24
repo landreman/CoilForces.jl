@@ -77,9 +77,8 @@ end
 Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
 infinitesmally thin filament. Use adaptive quadrature.
 """
-function inductance_filament_adaptive(coil::CoilCircularXSection; reltol=1e-8, abstol=1e-14)
-    aminor = coil.aminor
-    regularization = aminor * aminor / √ℯ
+function inductance_filament_adaptive(coil::Coil; reltol=1e-8, abstol=1e-14)
+    regularization = compute_regularization(coil)
 
     function inductance_filament_integrand_wrapper(ϕs) 
         # Shift 2nd angle so the near-singularity is at the boundary of the

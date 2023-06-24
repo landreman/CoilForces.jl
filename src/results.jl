@@ -2348,10 +2348,128 @@ function plot_inductance_convergence()
     )
 end
 
+function save_inductance_b_scan_rectangular_xsection(;
+    a=0.01,
+    hsx=true,
+    reltol = 1e-1,
+    abstol = 1e-1,
+)
+
+    #bs = a * 10 .^ collect(((-1.0):(0.125):(1)))
+    bs = a * 10 .^ collect(((-1.0):(0.125):(1)))
+    nb = length(bs)
+    println("a = $(a)")
+    println("Values of b that will be evaluated: ", bs)
+
+    # Total current [Amperes]
+    I = 1.0
+
+    if hsx
+        config_str = "hsx"
+    else
+        config_str = "circle"
+    end
+
+    inductances_hifi = similar(bs)
+    inductances_filament = similar(bs)
+    times = similar(bs)
+    println("Number of threads: ", Threads.nthreads())
+    Threads.@threads for jb in 1:nb
+        # CurveXYZFourier has buffers that need to have distinct contents in
+        # different threads, so we define the curve here inside the loop, where
+        # all new variables are distinct for each thread.
+        if hsx
+            curve = get_curve("hsx", 1)
+        else
+            # Major radius of coil [meters]
+            R0 = 1.0
+            curve = CurveCircle(R0)
+        end
+    
+        b = bs[jb]
+        #println("b = ", b)
+        println("Thread $(Threads.threadid()) is handling jb = $(jb) of $(nb): b = ", b)
+        coil = CoilRectangularXSection(curve, I, a, b, FrameCentroid(curve))
+
+        @time L_filament = inductance_filament_adaptive(coil; abstol=0, reltol=1e-3)
+        #if sqrt(a^2 + b^2) < 1 / 11.5
+        if sqrt(a^2 + b^2) < 0.075
+                time_data = @timed L_hifi = inductance_finite_thickness(coil; reltol=reltol, abstol=abstol)
+        else
+            time_data = @timed L_hifi = NaN
+        end
+        times[jb] = time_data.time
+        inductances_hifi[jb] = L_hifi
+        inductances_filament[jb] = L_filament
+        println("  time: $(time_data.time)  L_filament: $(L_filament)  L_hifi: $(L_hifi)  ratio: $(L_filament / L_hifi)")
+    end
+
+    directory = "/Users/mattland/Box/work23/20230517-01-inductance_a_scans/"
+    date_str = replace("$(Dates.now())", ":" => ".")
+    filename = "inductance_rectangular_xsection_$(config_str)_a$(a)_rtol$(reltol)_atol$(abstol)_$(date_str).dat"
+    open(directory * filename, "w") do file
+        write(file, "a, reltol, abstol\n")
+        write(file, "$(a),$(reltol),$(abstol)\n")
+        write(file, "b,L_hifi,L_filament,time\n")
+        for jb in 1:length(bs)
+            write(file, "$(bs[jb]),$(inductances_hifi[jb]),$(inductances_filament[jb]),$(times[jb])\n")
+        end
+    end
+    
+end
+
+function plot_inductance_b_scan_rectangular_xsection()
+    directory = "/Users/mattland/Box/work23/20230517-01-inductance_a_scans/"
+    filenames = [
+        "inductance_rectangular_xsection_hsx_a0.001_rtol0.1_atol0.1_2023-06-22T12.55.18.595.dat",
+        "inductance_rectangular_xsection_hsx_a0.01_rtol0.1_atol0.1_2023-06-22T16.53.30.360.dat",
+    ]
+    n = length(filenames)
+    plot()
+    #    xscale=:log10,
+    #    yscale=:log10,
+    #)
+    for j in 1:n
+        filename = filenames[j]
+        f = CSV.File(directory * filename, header=3)
+    
+        plot!(f.b, f.L_hifi, 
+            xscale=:log10,
+            minorgrid=true,
+        )
+        plot!(f.b, f.L_filament)
+    end
+    xlabel!("b [meters]")
+    title!("Inductance [SI units]")
+    ylims!(0, 3e-6)
+end
+
 function save_HSX_rectangular_coil_shape()
     curve = get_curve("hsx", 1)
+
+    # Dimensions in Singh paper:
     a = 0.12
     b = 0.06
+
+    # Dimensions in David Anderson's note:
+    a = 0.1296
+    b = 0.0568
+
     coil = CoilRectangularXSection(curve, 1.0, a, b, FrameCentroid(curve))
-    CoilForces.save(coil, "/Users/mattland/Box/work23/20230614-01-hsx_rectangular_coil.dat", 200)
+    regularization = compute_regularization(coil)
+    n = 200  # Number of points
+    filename = "/Users/mattland/Box/work23/20230614-01-hsx_rectangular_coil"
+    CoilForces.save(coil, filename * ".dat", n)
+
+    # Now save a second file with the self-force
+    open(filename * "_force.dat", "w") do file
+        write(file, "Fx, Fy, Fz\n")
+        for j in 1:n
+            ϕ = 2π * (j - 1) / n
+            differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
+            B = B_filament_adaptive(coil, position; regularization=regularization)
+            F = cross(tangent, B)
+            write(file, "$(F[1]), $(F[2]), $(F[3])\n")
+        end
+    end
 end
