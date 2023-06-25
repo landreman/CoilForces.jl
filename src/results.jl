@@ -1042,6 +1042,62 @@ function plot_high_fidelity_force_for_HSX_coil_compare(filenames)
 
 end
 
+function save_high_fidelity_force_for_circular_coil_rectangular_xsection()
+    #reltol = 3e-7
+    #abstol = 3e-7
+    reltol = 1e-2
+    abstol = 1e-2
+
+    # geometric mean of a and b [meters]
+    d = 0.01
+
+    b_over_as = [1.0]
+    #b_over_as = 10 .^ collect(((-1.0):(0.5):(1.0)))
+    println("Values of b/a that will be evaluated: ", b_over_as)
+
+    # Major radius of coil [meters]
+    R0 = 1.0
+
+    # Total current [Amperes]
+    I = 1.0
+
+    as = similar(b_over_as)
+    bs = similar(b_over_as)
+    force_hifi = similar(b_over_as)
+    force_analytic = similar(b_over_as)
+    times = similar(b_over_as)
+    println("Number of threads: $(Threads.nthreads())")
+    Threads.@threads for ja in eachindex(b_over_as)
+        b_over_a = b_over_as[ja]
+        a = d / sqrt(b_over_a)
+        b = d * sqrt(b_over_a)
+        as[ja] = a
+        bs[ja] = b
+        println("a = ", a)
+        curve = CurveCircle(R0)
+        coil = CoilRectangularXSection(curve, I, a, b, FrameCircle())
+
+        time_data = @timed force = force_finite_thickness(coil, 0.0; reltol=reltol, abstol=abstol)
+        force_hifi[ja] = force[1]
+        force_analytic[ja] = analytic_force_per_unit_length(coil)
+        times[ja] = time_data.time
+        println("  thread: $(Threads.threadid())  a: $(a)  b: $(b)  time: $(time_data.time)  analytic force: $(force_analytic[ja])  hifi force: $(force_hifi[ja])  ratio: $(force_analytic[ja] / force_hifi[ja])")
+    end
+
+    directory = "/Users/mattland/Box/work23/20230625-01-rectangular_xsection_force/"
+    datestr = replace("$(Dates.now())", ":" => ".")
+    filename = "circular_coil_rectangular_xsection_force_d$(d)_rtol$(reltol)_atol$(abstol)_$(datestr).dat"
+    open(directory * filename, "w") do file
+        write(file, "R0, current, d, reltol, abstol\n")
+        write(file, "$(R0), $(I), $(d), $(reltol), $(abstol)\n")
+        write(file, "a,b,Fx_hifi,Fx_analytic,time\n")
+        for ja in eachindex(b_over_as)
+            write(file, "$(as[ja]),$(bs[ja]),$(force_hifi[ja]),$(force_analytic[ja]),$(times[ja])\n")
+        end
+    end
+    
+end
+
 function save_high_fidelity_Bz_for_circular_coil_a_scan()
     reltol = 1e-8
     abstol = 1e-8
