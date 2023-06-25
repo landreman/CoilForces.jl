@@ -333,8 +333,8 @@ function plot_force_convergence_single()
     coil_num = 1
 
     # point at which to evaluate the force:
-    ϕ0 = 0.0
-    #ϕ0 = 2π/5
+    #ϕ0 = 0.0
+    ϕ0 = 2π/5
 
     curve = get_curve("hsx", coil_num)
     # curve = CurveCircle(2.2)
@@ -355,12 +355,13 @@ function plot_force_convergence_single()
     force_per_unit_length = zeros(nns)
     force_per_unit_length_singularity_subtraction = zeros(nns)
     for jn in 1:nns
-        B = B_filament_fixed(coil, r_eval, ns[jn], regularization=δ)
+        B = B_filament_fixed(coil, r_eval, ns[jn], regularization=δ; ϕ_shift=ϕ0)
+        #B = B_filament_fixed(coil, r_eval, ns[jn], regularization=δ)
         force_per_unit_length[jn] = current * norm(cross(tangent0, B))
 
         B = B_singularity_subtraction_fixed(coil, ϕ0, ns[jn])
         force_per_unit_length_singularity_subtraction[jn] = current * norm(cross(tangent0, B))
-  end
+    end
 
     scatter(ns, abs.(force_per_unit_length), xscale=:log10, label="original")
     scatter!(ns, abs.(force_per_unit_length_singularity_subtraction), label="singularity subtraction")
@@ -464,14 +465,14 @@ function plot_force_convergence_grid()
         curve = get_curve("hsx", coil_num)    
         coil = CoilCircularXSection(curve, current, a)
     
-        for jϕ in 1:length(ϕs)
+        for jϕ in eachindex(ϕs)
             ϕ0 = ϕs[jϕ]
 
             r_eval, tangent0 = position_and_tangent(curve, ϕ0)
             force_per_unit_length = zeros(nns)
             force_per_unit_length_singularity_subtraction = zeros(nns)
             for jn in 1:nns
-                B = B_filament_fixed(coil, r_eval, ns[jn], regularization=δ)
+                B = B_filament_fixed(coil, r_eval, ns[jn], regularization=δ; ϕ_shift=ϕ0)
                 force_per_unit_length[jn] = current * norm(cross(tangent0, B))
 
                 B = B_singularity_subtraction_fixed(coil, ϕ0, ns[jn])
@@ -556,7 +557,7 @@ function save_high_fidelity_force_for_circular_coil_a_scan()
 
     high_fidelity_over_analytic_force = similar(a_over_R)
     times = similar(a_over_R)
-    for ja in 1:length(a_over_R)
+    for ja in eachindex(a_over_R)
         a = a_over_R[ja] * R0
         println("a = ", a)
         coil = CoilCircularXSection(curve, I, a)
@@ -574,7 +575,7 @@ function save_high_fidelity_force_for_circular_coil_a_scan()
     filename = "circular_coil_high_fidelity_over_analytic_force_rtol_$(reltol)_atol_$(abstol)_$(Dates.now()).dat"
     open(directory * filename, "w") do file
         write(file, "a/R, (high fidelity force)/(analytic force), time\n")
-        for ja in 1:length(a_over_R)
+        for ja in eachindex(a_over_R)
             write(file, "$(a_over_R[ja]), $(high_fidelity_over_analytic_force[ja]), $(times[ja])\n")
         end
     end
@@ -597,7 +598,7 @@ function save_high_fidelity_force_for_circular_coil_vary_tol()
     times = similar(a_over_R)
     abstols = similar(a_over_R)
     reltols = similar(a_over_R)
-    for ja in 1:length(a_over_R)
+    for ja in eachindex(a_over_R)
         a = a_over_R[ja]
         coil = CoilCircularXSection(curve, I, a)
 
@@ -621,7 +622,7 @@ function save_high_fidelity_force_for_circular_coil_vary_tol()
     filename = "circular_coil_high_fidelity_over_analytic_force_rtol_$(reltol)_atol_$(abstol).dat"
     open(filename, "w") do file
         write(file, "a/R, (high fidelity force)/(analytic force), time\n")
-        for ja in 1:length(a_over_R)
+        for ja in eachindex(a_over_R)
             write(file, "$(a_over_R[ja]), $(high_fidelity_over_analytic_force[ja]), $(times[ja])\n")
         end
     end
@@ -1057,7 +1058,7 @@ function save_high_fidelity_Bz_for_circular_coil_a_scan()
 
     high_fidelity_max_B = similar(a_over_R)
     times = similar(a_over_R)
-    for ja in 1:length(a_over_R)
+    for ja in eachindex(a_over_R)
         a = a_over_R[ja] * R0
         println("a = ", a)
         coil = CoilCircularXSection(curve, I, a)
@@ -1073,7 +1074,7 @@ function save_high_fidelity_Bz_for_circular_coil_a_scan()
     filename = "circular_coil_max_B_rtol_$(reltol)_atol_$(abstol)_$(Dates.now()).dat"
     open(directory * filename, "w") do file
         write(file, "a/R, max |B|, time\n")
-        for ja in 1:length(a_over_R)
+        for ja in eachindex(a_over_R)
             write(file, "$(a_over_R[ja]), $(high_fidelity_max_B[ja]), $(times[ja])\n")
         end
     end
@@ -2388,7 +2389,7 @@ function save_inductance_a_scan()
     inductances_hifi = similar(aminors)
     inductances_filament = similar(aminors)
     times = similar(aminors)
-    for ja in 1:length(aminors)
+    for ja in eachindex(aminors)
         a = aminors[ja]
         println("a = ", a)
         coil = CoilCircularXSection(curve, I, a)
@@ -2406,7 +2407,7 @@ function save_inductance_a_scan()
     filename = "inductance_$(config_str)_rtol_$(reltol)_atol_$(abstol)_$(date_str).dat"
     open(directory * filename, "w") do file
         write(file, "a,L_hifi,L_filament,time\n")
-        for ja in 1:length(aminors)
+        for ja in eachindex(aminors)
             write(file, "$(aminors[ja]),$(inductances_hifi[ja]),$(inductances_filament[ja]),$(times[ja])\n")
         end
     end
@@ -2550,7 +2551,7 @@ function save_inductance_b_scan_rectangular_xsection(;
         write(file, "a, reltol, abstol\n")
         write(file, "$(a),$(reltol),$(abstol)\n")
         write(file, "b,L_hifi,L_filament,time\n")
-        for jb in 1:length(bs)
+        for jb in eachindex(bs)
             write(file, "$(bs[jb]),$(inductances_hifi[jb]),$(inductances_filament[jb]),$(times[jb])\n")
         end
     end

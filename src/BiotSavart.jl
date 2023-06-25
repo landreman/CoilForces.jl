@@ -44,7 +44,7 @@ Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
 infinitesmally thin filament. Use quadrature on a fixed uniform grid with
 specified number of points, nϕ.
 """
-function B_filament_fixed(coil::Coil, r_eval, nϕ; regularization=0.0, drop_first_point=false)
+function B_filament_fixed(coil::Coil, r_eval, nϕ; regularization=0.0, drop_first_point=false, ϕ_shift=0.0)
     dϕ = 2π / nϕ
     B = [0.0, 0.0, 0.0]
     if drop_first_point
@@ -53,7 +53,7 @@ function B_filament_fixed(coil::Coil, r_eval, nϕ; regularization=0.0, drop_firs
         first_point = 1
     end
     for j in first_point:nϕ
-        ϕ = (j - 1) * dϕ
+        ϕ = (j - 1) * dϕ + ϕ_shift
         B += d_B_d_ϕ(coil, ϕ, r_eval, regularization=regularization)
     end
     B *= dϕ
@@ -109,7 +109,7 @@ function B_singularity_subtraction_fixed(coil::Coil, ϕ0, nϕ)
     r_prime_prime_cross_r_prime = cross(r_prime_prime, r_prime)
     regularization_to_use = compute_regularization(coil)
     for j in 1:nϕ
-        ϕ = (j - 1) * dϕ
+        ϕ = (j - 1) * dϕ + ϕ0
         B += d_B_d_ϕ_singularity_subtracted(coil, ϕ, r_eval, regularization_to_use, ϕ0, r_prime_prime_cross_r_prime, dℓdϕ_squared)
     end
     B = B * dϕ + singularity_term(coil, ϕ0)

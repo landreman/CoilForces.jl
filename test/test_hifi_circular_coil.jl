@@ -82,7 +82,7 @@ using Test
         I = 1.1
     
         high_fidelity_max_B = similar(a_over_R)
-        for ja in 1:length(a_over_R)
+        for ja in eachindex(a_over_R)
             a = a_over_R[ja] * R0
             modB = hifi_circular_coil_compute_Bz(R0, a, I, R0 - a, 0; reltol=reltol, abstol=abstol)
             high_fidelity_max_B[ja] = modB
@@ -159,7 +159,7 @@ end
 
         high_fidelity_over_analytic_force = similar(a_over_R)
         times = similar(a_over_R)
-        for ja in 1:length(a_over_R)
+        for ja in eachindex(a_over_R)
             a = a_over_R[ja]
             println("a = ", a)
             coil = CoilCircularXSection(curve, I, a)
