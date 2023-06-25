@@ -35,6 +35,10 @@ using Test
         curve = CurveCircle(R0)
         coil = CoilCircularXSection(curve, I, a)
 
+        force_from_quadrature = force_filament_adaptive(coil, 0.0)
+        @test abs(force_from_quadrature[2]) < 1e-13
+        @test abs(force_from_quadrature[3]) < 1e-13
+
         regularization = a * a / sqrt(exp(1))
         r_eval = [R0, 0, 0]
         B_fixed = B_filament_fixed(coil, r_eval, 1000, regularization=regularization)
@@ -42,8 +46,9 @@ using Test
         @test B_fixed ≈ B_adaptive
         @test abs(B_adaptive[1]) < 1e-13
         @test abs(B_adaptive[2]) < 1e-13
-        force_from_quadrature = I * B_adaptive[3]
-        @test force_from_quadrature ≈ analytic_force_per_unit_length(coil) rtol=1e-3
+        force_from_quadrature2 = I * B_adaptive[3]
+        @test force_from_quadrature[1] ≈ force_from_quadrature2
+        @test force_from_quadrature[1] ≈ analytic_force_per_unit_length(coil) rtol=1e-3
     end
 
     @testset "Test that regularized Biot-Savart for a filament matches the analytic result. Rectangular x-section" begin
@@ -63,6 +68,10 @@ using Test
                 b = a * b_over_a
                 coil = CoilRectangularXSection(curve, I, a, b, FrameCircle())
 
+                force_from_quadrature = force_filament_adaptive(coil, 0.0)
+                @test abs(force_from_quadrature[2]) < 1e-13
+                @test abs(force_from_quadrature[3]) < 1e-13
+
                 regularization = CoilForces.compute_regularization(coil)
                 r_eval = [R0, 0, 0]
                 B_fixed = B_filament_fixed(coil, r_eval, 30000, regularization=regularization)
@@ -70,9 +79,10 @@ using Test
                 @test B_fixed ≈ B_adaptive
                 @test abs(B_adaptive[1]) < 1e-13
                 @test abs(B_adaptive[2]) < 1e-13
-                force_from_quadrature = I * B_adaptive[3]
+                force_from_quadrature2 = I * B_adaptive[3]
+                @test force_from_quadrature[1] ≈ force_from_quadrature2
                 force_analytic = analytic_force_per_unit_length(coil)
-                @test force_from_quadrature ≈ force_analytic rtol=1e-3
+                @test force_from_quadrature[1] ≈ force_analytic rtol=1e-3
                 #println("a: $(a)  b: $(b)")
                 #println("  quad:     $(force_from_quadrature)")
                 #println("  analytic: $(force_analytic)   diff: $(force_analytic - force_from_quadrature)")
