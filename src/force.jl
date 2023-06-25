@@ -87,6 +87,17 @@ function interpolated_force_per_unit_length(coil::CoilCircularXSection)
 end
 
 """
+Compute the self-force using the regularized 1D filament model, evaluated using
+adaptive quadrature.
+"""
+function force_filament_adaptive(coil::Coil, ϕ; reltol=1e-8, abstol=1e-14)
+    regularization = compute_regularization(coil)
+    r_eval, tangent = position_and_tangent(coil.curve, ϕ)
+    B = B_filament_adaptive(coil::Coil, r_eval; regularization=regularization, reltol=reltol, abstol=abstol)
+    return coil.current * cross(tangent, B)
+end
+
+"""
 Compute the force-per-unit-length for a finite-thickness circular-cross-section coil.
 
 ϕ: Curve parameter at which the force-per-unit-length will be computed.

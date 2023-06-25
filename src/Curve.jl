@@ -1,10 +1,12 @@
 abstract type Curve end
 
-function tangent(c::Curve, ϕ)
-    # This function could be sped up since γ is presently computed but not used.
+"""
+Returns a tuple (position vector, tangent vector)
+"""
+function position_and_tangent(c::Curve, ϕ)
     data = γ_and_derivative(c, ϕ)
     r_prime = data[:, 2]
-    return r_prime / norm(r_prime)
+    return data[:, 1], r_prime / norm(r_prime)
 end
 
 function Frenet_frame(c::Curve, ϕ)

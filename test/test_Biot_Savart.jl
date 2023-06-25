@@ -328,8 +328,7 @@ using Test
             # ϕ0 = point at which to evaluate the force:
             for ϕ0 in ((1:nϕ0) .- 1) * 2π / nϕ0
     
-                r_eval = γ(curve, ϕ0)
-                tangent0 = tangent(curve, ϕ0)
+                r_eval, tangent0 = position_and_tangent(curve, ϕ0)
 
                 B = B_filament_fixed(coil, r_eval, nϕ, regularization=δ)
                 force_per_unit_length_original_fixed = current * cross(tangent0, B)
@@ -368,8 +367,7 @@ using Test
             # ϕ0 = point at which to evaluate the force:
             for ϕ0 in ((1:nϕ0) .- 1) * 2π / nϕ0
     
-                r_eval = γ(curve, ϕ0)
-                tangent0 = tangent(curve, ϕ0)
+                r_eval, tangent0 = position_and_tangent(curve, ϕ0)
 
                 B = B_filament_fixed(coil, r_eval, nϕ, regularization=regularization)
                 force_per_unit_length_original_fixed = current * cross(tangent0, B)

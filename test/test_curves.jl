@@ -64,6 +64,10 @@ end
             dℓdϕ, κ = curvature(c, ϕ)
             @test dℓdϕ ≈ R0
             @test κ ≈ 1 / R0
+
+            position, tangent = position_and_tangent(c, ϕ)
+            @test position ≈ [R0 * cos(ϕ), R0 * sin(ϕ), 0]
+            @test tangent ≈ [-sin(ϕ), cos(ϕ), 0]
         end
     end
 
@@ -132,15 +136,18 @@ end
         for j in 1:nϕ
             position = γ(c, ϕ[j])
             @test position ≈ γ_python[j, :]
+
             dℓdϕ, κ, τ, γ0, tangent, normal, binormal = Frenet_frame(c, ϕ[j])
             @test κ ≈ κ_python[j]
             @test τ ≈ τ_python[j]
+            @test γ0 ≈ γ_python[j, :]
             @test tangent ≈ tangent_python[j, :]
             @test normal ≈ normal_python[j, :]
             @test binormal ≈ binormal_python[j, :] 
 
             dℓdϕ, κ, γ0, tangent, normal = Frenet_frame_without_torsion(c, ϕ[j])
             @test κ ≈ κ_python[j]
+            @test γ0 ≈ γ_python[j, :]
             @test tangent ≈ tangent_python[j, :]
             @test normal ≈ normal_python[j, :]
 
@@ -148,6 +155,10 @@ end
             @test κ2 ≈ κ_python[j]
             @test κ2 ≈ κ
             @test dℓdϕ2 ≈ dℓdϕ
+
+            γ0, tangent = position_and_tangent(c, ϕ[j])
+            @test γ0 ≈ γ_python[j, :]
+            @test tangent ≈ tangent_python[j, :]
         end
     end
 end

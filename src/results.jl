@@ -239,8 +239,9 @@ function plot_force_for_HSX()
     ϕ = (collect(1:nϕ) .- 1) * 2π / nϕ
     force_per_unit_length = zeros(nϕ, 3)
     for j in 1:nϕ
-        B = B_filament_adaptive(coil, γ(curve, ϕ[j]), regularization=regularization)
-        force_per_unit_length[j, :] = current * cross(tangent(curve, ϕ[j]), B)
+        position, tangent = position_and_tangent(curve, ϕ[j])
+        B = B_filament_adaptive(coil, position, regularization=regularization)
+        force_per_unit_length[j, :] = current * cross(tangent, B)
     end
 
     plot(ϕ, force_per_unit_length[:, 1], label="x")
@@ -350,8 +351,7 @@ function plot_force_convergence_single()
     nns = 40
     ns = [Int(round(10 ^ x)) for x in range(1.0, 4.0, length=nns)]
 
-    r_eval = γ(curve, ϕ0)
-    tangent0 = tangent(curve, ϕ0)
+    r_eval, tangent0 = position_and_tangent(curve, ϕ0)
     force_per_unit_length = zeros(nns)
     force_per_unit_length_singularity_subtraction = zeros(nns)
     for jn in 1:nns
@@ -390,8 +390,7 @@ function plot_force_convergence_single_for_talk()
     nns = 60
     ns = [Int(round(10 ^ x)) for x in range(1.0, 3.0, length=nns)]
 
-    r_eval = γ(curve, ϕ0)
-    tangent0 = tangent(curve, ϕ0)
+    r_eval, tangent0 = position_and_tangent(curve, ϕ0)
     force_per_unit_length = zeros(nns)
     force_per_unit_length_singularity_subtraction = zeros(nns)
     for jn in 1:nns
@@ -468,8 +467,7 @@ function plot_force_convergence_grid()
         for jϕ in 1:length(ϕs)
             ϕ0 = ϕs[jϕ]
 
-            r_eval = γ(curve, ϕ0)
-            tangent0 = tangent(curve, ϕ0)
+            r_eval, tangent0 = position_and_tangent(curve, ϕ0)
             force_per_unit_length = zeros(nns)
             force_per_unit_length_singularity_subtraction = zeros(nns)
             for jn in 1:nns
@@ -805,8 +803,7 @@ function plot_Fx_for_HSX_coil_1_Siena()
     force_circular_approximation = zeros((neval, 3))
     ϕ = [2π * (j - 1) / neval for j in 1:neval]
     for j in 1:neval
-        position = γ(curve, ϕ[j])
-        tangent_vector = tangent(curve, ϕ[j])
+        position, tangent_vector = position_and_tangent(curve, ϕ[j])
         B = B_filament_adaptive(coil, position; regularization=regularization)
         force[j, :] = current * cross(tangent_vector, B)
         force_circular_approximation[j, :] = force_locally_circular_approximation(coil, ϕ[j])
@@ -841,8 +838,7 @@ function plot_Fx_for_HSX_coil_1()
     force_drop_singular_point = zeros((neval, 3, n_quadpointss))
     ϕ = [2π * (j - 1) / neval for j in 1:neval]
     for j in 1:neval
-        position = γ(curve, ϕ[j])
-        tangent_vector = tangent(curve, ϕ[j])
+        position, tangent_vector = position_and_tangent(curve, ϕ[j])
         B = B_filament_adaptive(coil, position; regularization=regularization)
         force[j, :] = current * cross(tangent_vector, B)
         force_circular_approximation[j, :] = force_locally_circular_approximation(coil, ϕ[j])
@@ -2227,8 +2223,7 @@ function compare_hifi_force_to_1D_for_HSX()
     forces = zeros(nϕ, 3)
     for j in 1:nϕ
         ϕ = ϕs[j]
-        r_eval = γ(curve, ϕ)
-        tangent_vec = tangent(curve, ϕ)
+        r_eval, tangent_vec = position_and_tangent(curve, ϕ)
         B = B_filament_adaptive(coil, r_eval; regularization=regularization)
         forces[j, :] = current * cross(tangent_vec, B)
     end
@@ -2337,8 +2332,7 @@ function plot_hifi_force_and_1D_for_HSX_for_talk()
         forces = zeros(nϕ, 3)
         for j in 1:nϕ
             ϕ = ϕs[j]
-            r_eval = γ(curve, ϕ)
-            tangent_vec = tangent(curve, ϕ)
+            r_eval, tangent_vec = position_and_tangent(curve, ϕ)
             B = B_filament_adaptive(coil, r_eval; regularization=regularization)
             forces[j, :] = current * cross(tangent_vec, B)
         end
