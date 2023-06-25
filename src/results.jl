@@ -1424,28 +1424,29 @@ function save_high_fidelity_B_vector_for_HSX_coil(;
 end
 
 function save_high_fidelity_B_vector_for_HSX_coil_rectangular_xsection(;
-    a = 0.02,  # [meters]
-    b = 0.01,  # [meters]
-    I = 1.0e4,  # Total current [Amperes]
+    a = 0.1296,
+    b = 0.0568,
+    I = 150.0e3,  # Total current [Amperes]
     reltol = 1e-3,
     abstol = 1e-3,
     nϕ = 4,
     nu = 2,
     nv = 3,
 )
-    curve = get_curve("hsx", 1)
-    #curve = CurveCircle(1.0)
-    coil = CoilRectangularXSection(curve, I, a, b, FrameCentroid(curve))
     high_fidelity_B = zeros(nϕ, nu, nv, 3)
-    for jϕ in 1:nϕ
-        println("Processing jϕ = $(jϕ) of $(nϕ)")
-        ϕ = 2π * (jϕ - 1) / nϕ
-        differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
-        p, q = get_frame(coil.frame, ϕ, position, tangent, normal)
-        for ju in 1:nu
-            println("  Processing ju = $(ju) of $(nu)")
-            u = ((ju - 1.0) / (nu - 1) - 0.5) * 2
-            for jv = 1:nv
+    println("Number of threads: ", Threads.nthreads())
+    Threads.@threads for ju in 1:nu
+        curve = get_curve("hsx", 1)
+        #curve = CurveCircle(1.0)
+        coil = CoilRectangularXSection(curve, I, a, b, FrameCentroid(curve))
+        println("Thread $(Threads.threadid()) is processing ju = $(ju) of $(nu)")
+        u = ((ju - 1.0) / (nu - 1) - 0.5) * 2
+        for jϕ in 1:nϕ
+            println("  Processing jϕ = $(jϕ) of $(nϕ)")
+            ϕ = 2π * (jϕ - 1) / nϕ
+            differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
+            p, q = get_frame(coil.frame, ϕ, position, tangent, normal)
+                for jv = 1:nv
                 v = ((jv - 1.0) / (nv - 1) - 0.5) * 2
                 eval_point = position + (u * a / 2) * p + (v * b / 2) * q
                 #println("      About to evaluate at ", eval_point, " ϕ=", ϕ, " θ_shift=", θ_shift)
@@ -1758,6 +1759,150 @@ function plot_high_fidelity_B_vector_for_HSX_coil_rectangular_xsection(
         savefig(directory * "HSX_rectangular_xsection_B" * filename_extension * ".pdf")
     end
 
+end
+
+function plot_high_fidelity_B_vector_for_HSX_coil_rectangular_xsection_for_paper(
+    #filename="HSX_rectangular_xsection_B_a0.02_b0.01_rtol1.0e-5_atol1.0e-5_nphi4_nu25_nv26_2023-06-21T16.02.19.567.dat"
+    filename="HSX_rectangular_xsection_B_a0.1296_b0.0568_rtol1.0e-5_atol1.0e-5_nphi1_nu64_nv65_2023-06-24T08.26.44.911.dat"
+)
+    # To generate hifi data for this function, run
+    # CoilForces.save_high_fidelity_B_vector_for_HSX_coil_rectangular_xsection()
+    directory = "/Users/mattland/Box/work23/20230621-01-rectangular_xsection_B/"
+    file = open(directory * filename, "r")
+
+    # Read and parse header:
+    line = readline(file)
+    line = readline(file)
+    splitline = split(line, ",")
+    a = parse(Float64, splitline[1])
+    b = parse(Float64, splitline[2])
+    I = parse(Float64, splitline[3])
+    reltol = parse(Float64, splitline[4])
+    abstol = parse(Float64, splitline[5])
+    nϕ = parse(Int, splitline[6])
+    nu = parse(Int, splitline[7])
+    nv = parse(Int, splitline[8])
+    println("Read nϕ=$(nϕ), nu=$(nu), nv=$(nv), I=$(I)")
+
+    curve = get_curve("hsx", 1)
+    #curve = CurveCircle(1.0)
+    coil = CoilRectangularXSection(curve, I, a, b, FrameCentroid(curve))
+
+    # Now read the main B data:
+    high_fidelity_B = zeros(nϕ, nu, nv, 3)
+    for jϕ in 1:nϕ
+        for ju in 1:nu
+            for jv = 1:nv
+                for jxyz in 1:3
+                    high_fidelity_B[jϕ, ju, jv, jxyz] = parse(Float64, readline(file))
+                end
+            end
+        end
+    end
+    close(file)
+    #@show high_fidelity_B
+
+    scalefontsizes()
+    scalefontsizes(0.9)
+
+    Plots.gr_cbar_width[] = 0.015
+
+    almost_one = 1 - (1e-6)
+    u = [((ju - 1) / (nu - 1) * 2 - 1) * almost_one for ju in 1:nu]
+    v = [((jv - 1) / (nv - 1) * 2 - 1) * almost_one for jv in 1:nv]
+    #u2d = [u[ju] for jv in 1:nv, ju in 1:nu]
+    #v2d = [v[jv] for jv in 1:nv, ju in 1:nu]
+    u_a_over_2 = 0.5 * u * a
+    v_b_over_2 = 0.5 * v * b
+
+    jϕ = 1
+    ϕ = 2π * (jϕ - 1) / nϕ
+    differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
+    p, q = get_frame(coil.frame, ϕ, position, tangent, normal)
+    κ1, κ2 = get_κ1_κ2(p, q, normal, curvature)
+
+    B_regularized_plus_extra_term = B_filament_adaptive(coil, position; regularization=compute_regularization(coil))
+    B_regularized_plus_extra_term += μ0 * coil.current * curvature / (8π) * (4 + 2 * log(2) + log(CoilForces.rectangular_xsection_δ(a, b))) * binormal
+    
+    B0 = zeros(nu, nv, 3)
+    for ju in 1:nu
+        for jv in 1:nv
+            B0_p, B0_q = CoilForces.rectangular_xsection_B0(coil, u[ju], v[jv])
+            B0[ju, jv, :] = B0_p * p + B0_q * q
+        end
+    end
+
+    B_hifi = high_fidelity_B[jϕ, :, :, :]
+    B_analytic = zeros(nu, nv, 3)
+    for jxyz in 1:3
+        for ju in 1:nu
+            for jv in 1:nv
+                Bκ_p, Bκ_q = CoilForces.rectangular_xsection_Bκ(coil, κ1, κ2, u[ju], v[jv])
+                Bκ_term = Bκ_p * p + Bκ_q * q
+                B_analytic[ju, jv, jxyz] = (
+                    B_regularized_plus_extra_term[jxyz] 
+                    + B0[ju, jv, jxyz]
+                    + Bκ_term[jxyz]
+                    )
+            end
+        end
+    end
+
+    for variant in ["hifi", "analytic"]
+        if variant == "hifi"
+            data3 = B_hifi
+            variant_str = "High fidelity"
+        elseif variant == "analytic"
+            data3 = B_analytic
+            variant_str = "Reduced model"
+        else
+            throw("Should not get here")
+        end
+
+        for component in ["z", "abs"]
+            if component == "z"
+                data = data3[:, :, 3]
+                data_str = "\$B_z\$"
+                data_file_str = "Bz"
+                contour_levels = collect(-0.6:0.05:0.6)
+            elseif component == "abs"
+                data = sqrt.(data3[:, :, 1].^2 + data3[:, :, 2].^2 + data3[:, :, 3].^2)
+                data_str = "\$|B|\$"
+                data_file_str = "modB"
+                contour_levels = collect(0:0.05:0.85)
+            else
+                throw("Should not get here")
+            end
+                
+
+            #maxB = maximum(leading_order_solution)
+            #minB = minimum(leading_order_solution)
+            #if maxB == minB
+            #    maxB += 1e-10
+            #end
+            #contour_levels = collect(range(minB, maxB, length=25))
+            #@show contour_levels
+
+            #plots[index] = contour(u_a_over_2, v_b_over_2, data',
+            # Factor of 15 is to scale 1e4 A to 150 kA
+            #contour(v_b_over_2, u_a_over_2, data * 15,
+            contour(v_b_over_2 * 100, u_a_over_2 * 100, data,
+                aspect_ratio = :equal,
+                levels=contour_levels,
+                clims=(contour_levels[1], contour_levels[end]),
+                dpi=100, 
+                size=(250, 400),
+                framestyle=:box
+            )
+            xlims!(-b/2 * 100, b/2 * 100)
+            ylims!(-a/2 * 100, a/2 * 100)
+            title_str = variant_str * " " * data_str * " [Tesla]"
+            title!(title_str)
+            ylabel!("\$ua/2\$ [cm]")
+            xlabel!("\$vb/2\$ [cm]")
+            savefig(directory * "20230621-01-HSX_rectangular_xsection_B_for_paper_" * variant * "_" * data_file_str * ".pdf")
+        end
+    end
 end
 
 function plot_high_fidelity_B_vector_for_HSX_coil_for_talk(
