@@ -7,6 +7,20 @@ function analytic_force_per_unit_length(coil::CoilCircularXSection)
     return μ0 * I * I / (4π * R) * (log(8 * R / a) - 0.75)
 end
 
+function analytic_force_per_unit_length(coil::CoilRectangularXSection)
+    # Assert that curve type is a CurveCircle:
+    coil.curve::CurveCircle
+    I = coil.current
+    R = coil.curve.R0
+    a = coil.a
+    b = coil.b
+    thirteen_over_twelve = 1.0833333333333333
+    return μ0 * I * I / (4π * R) * (
+        log(8 * R / sqrt(a * b)) 
+        + thirteen_over_twelve - 0.5 * rectangular_xsection_k(a, b)
+    )
+end
+
 # Data are from
 # circular_coil_high_fidelity_over_analytic_force_rtol_1.0e-7_atol_1.0e-7_2023-02-17T02:57:13.639.dat
 # Columns are:
@@ -73,7 +87,7 @@ function interpolated_force_per_unit_length(coil::CoilCircularXSection)
 end
 
 """
-Compute the force-per-unit-length for a finite-thickness coil.
+Compute the force-per-unit-length for a finite-thickness circular-cross-section coil.
 
 ϕ: Curve parameter at which the force-per-unit-length will be computed.
 """
@@ -110,6 +124,48 @@ function force_finite_thickness(coil::CoilCircularXSection, ϕ; reltol=1e-3, abs
     )
     Biot_savart_prefactor = coil.current * μ0 / (4 * π^2)
     force_prefactor = coil.current / π
+    return Biot_savart_prefactor * force_prefactor * val
+end
+
+"""
+Compute the force-per-unit-length for a finite-thickness rectangular-cross-section coil.
+
+ϕ: Curve parameter at which the force-per-unit-length will be computed.
+"""
+function force_finite_thickness(coil::CoilRectangularXSection, ϕ; reltol=1e-3, abstol=1e-5)
+    dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
+    p, q = get_frame(coil.frame, ϕ, r0, tangent, normal)
+    κ1, κ2 = CoilForces.get_κ1_κ2(p, q, normal, κ)
+
+    function force_cubature_func(xp)
+        u = xp[1]
+        v = xp[2]
+        u_a_over_2 = 0.5 * u * coil.a
+        v_b_over_2 = 0.5 * v * coil.b
+        sqrtg = 1 - u_a_over_2 * κ1 - v_b_over_2 * κ2
+        r_eval = r0 + u_a_over_2 * p + v_b_over_2 * q
+        B = B_finite_thickness_normalized(
+            coil,
+            r_eval,
+            reltol=reltol,
+            abstol=abstol,
+            ϕ_shift=ϕ,
+        )
+        return sqrtg * cross(tangent, B)
+    end
+
+    force_xmin = [-1, -1]
+    force_xmax = [1, 1]
+    
+    val, err = hcubature(
+        force_cubature_func, 
+        force_xmin,
+        force_xmax;
+        atol=abstol,
+        rtol=reltol
+    )
+    Biot_savart_prefactor = μ0 * coil.current / (16 * π)
+    force_prefactor = 0.25 * coil.current
     return Biot_savart_prefactor * force_prefactor * val
 end
 

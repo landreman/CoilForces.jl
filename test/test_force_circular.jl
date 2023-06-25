@@ -22,7 +22,7 @@ using Test
         @test analytic_force_per_unit_length(coil) ≈ 1.8655666361140157e6
     end
 
-    @testset "Test that regularized Biot-Savart for a filament matches the analytic result" begin
+    @testset "Test that regularized Biot-Savart for a filament matches the analytic result. Circular x-section" begin
         # Major radius of coil [meters]
         R0 = 2.3
 
@@ -46,7 +46,41 @@ using Test
         @test force_from_quadrature ≈ analytic_force_per_unit_length(coil) rtol=1e-3
     end
 
-    @testset "Test that force calculation for a finite thickness coil matches the analytic result" begin
+    @testset "Test that regularized Biot-Savart for a filament matches the analytic result. Rectangular x-section" begin
+        # Major radius of coil [meters]
+        R0 = 2.3
+
+        # Total current [Amperes]
+        I = 3.1e6
+
+        as = [0.01, 0.02, 0.04]
+
+        b_over_as = 10 .^ collect(-1:0.25:1)
+
+        curve = CurveCircle(R0)
+        for a in as
+            for b_over_a in b_over_as
+                b = a * b_over_a
+                coil = CoilRectangularXSection(curve, I, a, b, FrameCircle())
+
+                regularization = CoilForces.compute_regularization(coil)
+                r_eval = [R0, 0, 0]
+                B_fixed = B_filament_fixed(coil, r_eval, 30000, regularization=regularization)
+                B_adaptive = B_filament_adaptive(coil, r_eval, regularization=regularization)
+                @test B_fixed ≈ B_adaptive
+                @test abs(B_adaptive[1]) < 1e-13
+                @test abs(B_adaptive[2]) < 1e-13
+                force_from_quadrature = I * B_adaptive[3]
+                force_analytic = analytic_force_per_unit_length(coil)
+                @test force_from_quadrature ≈ force_analytic rtol=1e-3
+                #println("a: $(a)  b: $(b)")
+                #println("  quad:     $(force_from_quadrature)")
+                #println("  analytic: $(force_analytic)   diff: $(force_analytic - force_from_quadrature)")
+            end
+        end
+    end
+
+    @testset "Test that force calculation for a finite thickness coil matches the analytic result. Circular xsection" begin
         # Major radius of coil [meters]
         R0 = 2.3
 
@@ -68,6 +102,33 @@ using Test
         @test abs(force[2]) < 1e-13
         @test abs(force[3]) < 1e-8
         @test force[1] ≈ analytic_force_per_unit_length(coil) rtol=3e-3
+    end
+
+    @testset "Test that force calculation for a finite thickness coil matches the analytic result. Rectangular xsection" begin
+        # Major radius of coil [meters]
+        R0 = 2.3
+
+        # Dimensions of the cross-section [meters]
+        a = 0.23
+        b = 0.4
+
+        # Total current [Amperes]
+        I = 3.1e6
+
+        curve = CurveCircle(R0)
+        coil = CoilRectangularXSection(curve, I, a, b, FrameCircle())
+
+        reltol = 1e-3
+        abstol = 1e-10
+
+        ϕ = 0
+        @time force = force_finite_thickness(coil, ϕ, reltol=reltol, abstol=abstol)
+        force_analytic = analytic_force_per_unit_length(coil)
+        println("numerical force: $(force)")
+        println("analytic force:   $(force_analytic)   rel diff: $((force[1] - force_analytic) / force_analytic)")
+        @test abs(force[2]) < 1e-13
+        @test abs(force[3]) < 1e-8
+        @test force[1] ≈ force_analytic rtol=1e-1
     end
 
     @testset "Test that force calculation for a finite thickness coil (using single 5D integral) matches the analytic result" begin
