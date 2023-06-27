@@ -2750,24 +2750,76 @@ function plot_inductance_b_scan_rectangular_xsection()
         "inductance_rectangular_xsection_hsx_a0.001_rtol0.1_atol0.1_2023-06-22T12.55.18.595.dat",
         "inductance_rectangular_xsection_hsx_a0.01_rtol0.1_atol0.1_2023-06-22T16.53.30.360.dat",
     ]
+    filenames = [
+        "inductance_rectangular_xsection_hsx_a0.001_rtol0.001_atol0.001_2023-06-27T06.22.45.637.dat",
+        "inductance_rectangular_xsection_hsx_a0.001_rtol0.0001_atol0.0001_2023-06-27T06.28.31.044.dat",
+        "inductance_rectangular_xsection_hsx_a0.01_rtol0.001_atol0.001_2023-06-26T19.22.27.950.dat",
+        "inductance_rectangular_xsection_hsx_a0.01_rtol0.0001_atol0.0001_2023-06-26T19.31.00.200.dat",
+        "inductance_rectangular_xsection_hsx_a0.1_rtol0.001_atol0.001_2023-06-27T05.30.01.425.dat",
+        "inductance_rectangular_xsection_hsx_a0.1_rtol0.0001_atol0.0001_2023-06-27T06.43.02.433.dat",
+    ]
+    filenames = [
+        "inductance_rectangular_xsection_hsx_a0.1_rtol0.001_atol0.001_2023-06-27T05.30.01.425.dat",
+        "inductance_rectangular_xsection_hsx_a0.1_rtol0.0001_atol0.0001_2023-06-27T06.43.02.433.dat",
+    ]
+    filenames = [
+        "inductance_rectangular_xsection_hsx_a0.001_rtol0.0001_atol0.0001_2023-06-27T06.28.31.044.dat",
+        "inductance_rectangular_xsection_hsx_a0.01_rtol0.0001_atol0.0001_2023-06-26T19.31.00.200.dat",
+        "inductance_rectangular_xsection_hsx_a0.1_rtol0.0001_atol0.0001_2023-06-27T06.43.02.433.dat",
+    ]
     n = length(filenames)
-    plot()
+
+    scalefontsizes()
+    scalefontsizes(1.0)
+    plot(size=(500, 500))
     #    xscale=:log10,
     #    yscale=:log10,
     #)
+    # For colors, see http://juliagraphics.github.io/Colors.jl/stable/namedcolors/
+    colors_filament = [:salmon, :limegreen, :deepskyblue]  # light
+    colors_hifi = [:firebrick, :darkgreen, :blue3] # dark
     for j in 1:n
         filename = filenames[j]
         f = CSV.File(directory * filename, header=3)
     
-        plot!(f.b, f.L_hifi, 
+        plot!(f.b, f.L_hifi * 1e6, 
             xscale=:log10,
             minorgrid=true,
+            label=false,
+            lw=4,
+            color=colors_hifi[j]
         )
-        plot!(f.b, f.L_filament)
+        plot!(f.b, 
+            f.L_filament * 1e6,
+            label=false,
+            lw=2,
+            ls=:dot,
+            color=colors_filament[j]
+        )
     end
-    xlabel!("b [meters]")
-    title!("Inductance [SI units]")
-    ylims!(0, 3e-6)
+    xlabel!("Conductor thickness b [meters]")
+    ylabel!("Self-inductance [\$\\mu\$H]")
+    ylims!(0, 3)
+    """
+    annotate!(5e-4, 2.4, text("a=0.001 m,\n2D", colors_filament[1]))
+    annotate!(6e-3, 1.4, text("a=0.01 m,\n2D", colors_filament[2]))
+    annotate!(0.15, 0.3, text("a=0.1 m,\n2D", colors_filament[3]))
+
+    annotate!(4e-3, 2.7, text("a=0.001 m,\n6D", colors_hifi[1]))
+    annotate!(8e-2, 1.6, text("a=0.01 m,\n6D", colors_hifi[2]))
+    annotate!(4.5e-1, 0.75, text("a=0.1 m,\n6D", colors_hifi[3]))
+    """
+    filament_string = "2D"
+    annotate!(5e-4, 2.4, text("a=0.001 m,\n" * filament_string, colors_filament[1]))
+    annotate!(6e-3, 1.4, text("a=0.01 m,\n" * filament_string, colors_filament[2]))
+    annotate!(0.15, 0.3, text("a=0.1 m,\n" * filament_string, colors_filament[3]))
+
+    hifi_string = "6D"
+    annotate!(4e-3, 2.7, text("a=0.001 m,\n" * hifi_string, colors_hifi[1]))
+    annotate!(8e-2, 1.6, text("a=0.01 m,\n" * hifi_string, colors_hifi[2]))
+    annotate!(4.5e-1, 0.75, text("a=0.1 m,\n" * hifi_string, colors_hifi[3]))
+
+    savefig(directory * "20230517-01-inductance_rectangular_xsection_hsx_ab_scan.pdf")
 end
 
 function save_HSX_rectangular_coil_shape()
