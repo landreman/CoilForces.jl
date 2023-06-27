@@ -200,13 +200,13 @@ Compute the magnetic field vector at a point with specified Cartesian
 coordinates. In this version of the function, the prefactor μ0 I / (16 π) is
 not included!
 """
-function B_finite_thickness_normalized(coil::CoilRectangularXSection, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0)
+function B_finite_thickness_normalized(coil::CoilRectangularXSection, r_eval; reltol=1e-3, abstol=1e-5, ϕ_shift=0.0, u_range=(-1, 1), v_range=(-1, 1))
     function Biot_savart_cubature_func(xp)
         return B_finite_thickness_integrand(coil, xp[1], xp[2], xp[3], r_eval)
     end
 
-    Biot_savart_xmin = [-1, -1, ϕ_shift]
-    Biot_savart_xmax = [1, 1, ϕ_shift + 2π]
+    Biot_savart_xmin = [u_range[1], v_range[1], ϕ_shift]
+    Biot_savart_xmax = [u_range[2], v_range[2], ϕ_shift + 2π]
 
     val, err = hcubature(
         Biot_savart_cubature_func, 

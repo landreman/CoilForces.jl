@@ -102,6 +102,10 @@ using Test
             L_hifi[j_ratio] = inductance_finite_thickness(coil, reltol=tol, abstol=tol)
         end
 
+        @show L_analytic
+        @show L_hifi
+        @test L_analytic ≈ L_hifi rtol=3e-5
+
         """
         plot(ratios, L_analytic, label="analytic")
         plot!(ratios, L_hifi, label="hi fi")
@@ -109,10 +113,43 @@ using Test
         xlabel!("a / b")
         title!("tol = $(tol)")
         """
+    end
+
+    @testset "For a circular coil with rectangular x-section, high fidelity method should match analytic result. integral of A" begin
+        R0 = 6.1
+        curve = CurveCircle(R0)
+        current = 1.2e6
+        n_ratio = 5
+        d = R0 * 0.01  # Geometric mean of a and b
+        #tol = 1e-4
+        tol = 1e-2
+        L_analytic = zeros(n_ratio)
+        L_hifi = zeros(n_ratio)
+        ratios = zeros(n_ratio)
+        for j_ratio in 1:n_ratio
+            log_ratio = ((j_ratio - 1) / (n_ratio - 1) - 0.5) * 1
+            ratio = 10.0 ^ log_ratio
+            ratios[j_ratio] = ratio
+            @show ratio
+            a = d * sqrt(ratio)
+            b = d / sqrt(ratio)
+            coil = CoilRectangularXSection(curve, current, a, b, FrameCircle())
+            L_analytic[j_ratio] = analytic_inductance_for_circular_coil(coil)
+            L_hifi[j_ratio] = CoilForces.inductance_finite_thickness_from_A(coil, reltol=tol, abstol=tol)
+        end
 
         @show L_analytic
         @show L_hifi
+        @show L_hifi ./ L_analytic
         @test L_analytic ≈ L_hifi rtol=3e-3
+
+        """
+        plot(ratios, L_analytic, label="analytic")
+        plot!(ratios, L_hifi, label="hi fi")
+        #plot(ratios, L_analytic ./ L_hifi)
+        xlabel!("a / b")
+        title!("tol = $(tol)")
+        """
     end
 
     @testset "Regularized filament methods for inductance should be nearly independent of number of quadrature points" begin

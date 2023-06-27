@@ -192,10 +192,13 @@ function inductance_finite_thickness(coil::CoilCircularXSection; reltol=1e-3, ab
 end
 
 """
-Compute the self-inductance of a coil via a 6D integral, accounting for the
-finite thickness.
+Compute the self-inductance of a coil via a 3D integral of the vector potential, accounting for the
+finite thickness. This version of the function is less reliable than
+inductance_finite_thickness(), but is kept here for testing.
 """
-function inductance_finite_thickness(coil::CoilRectangularXSection; reltol=1e-3, abstol=1e-5)
+function inductance_finite_thickness_from_A(coil::CoilRectangularXSection; reltol=1e-3, abstol=1e-5)
+    A_reltol = reltol * 0.1
+    A_abstol = abstol * 0.1
 
     function inductance_cubature_func(xp)
         u = xp[1]
@@ -213,8 +216,8 @@ function inductance_finite_thickness(coil::CoilRectangularXSection; reltol=1e-3,
         A = A_finite_thickness_normalized(
             coil,
             r_eval,
-            reltol=reltol,
-            abstol=abstol,
+            reltol=A_reltol,
+            abstol=A_abstol,
             ϕ_shift=ϕ,
         )
         return sqrtg * dot(tangent, A)
@@ -233,4 +236,98 @@ function inductance_finite_thickness(coil::CoilRectangularXSection; reltol=1e-3,
     A_prefactor = μ0 * coil.current / (16 * π)
     L_prefactor = 1 / (4 * coil.current)
     return A_prefactor * L_prefactor * val
+end
+
+"""
+Compute the self-inductance of a coil via a 6D integral, accounting for the
+finite thickness. This version of the function is more reliable than
+"""
+function inductance_finite_thickness(coil::CoilRectangularXSection; reltol=1e-3, abstol=1e-5)
+
+    function inductance_cubature_func_cases(xp, u_case, v_case)
+        u = xp[1]
+        v = xp[2]
+        ϕ = xp[3]
+        uhat = xp[4]
+        vhat = xp[5]
+        ϕp = xp[6] + ϕ
+        # For the change of variables that follows, see
+        # 20230626-02 Moving singularity to a corner.lyx
+        if u_case
+            up = u + (1 - u) * uhat
+            d_utilde_d_uhat = 1 - u
+        else
+            up = -1 + (u + 1) * uhat
+            d_utilde_d_uhat = u + 1
+        end
+        if v_case
+            vp = v + (1 - v) * vhat
+            d_vtilde_d_vhat = 1 - v
+        else
+            vp = -1 + (v + 1) * vhat
+            d_vtilde_d_vhat = v + 1
+        end
+
+        u_a_over_2 = 0.5 * u * coil.a
+        v_b_over_2 = 0.5 * v * coil.b
+        dℓdϕ, κ, rc, tangent, normal = Frenet_frame_without_torsion(coil.curve, ϕ)
+        p, q = get_frame(coil.frame, ϕ, rc, tangent, normal)
+        κ1, κ2 = CoilForces.get_κ1_κ2(p, q, normal, κ)
+
+        up_a_over_2 = 0.5 * up * coil.a
+        vp_b_over_2 = 0.5 * vp * coil.b
+        dℓdϕp, κp, rcp, tangentp, normalp = Frenet_frame_without_torsion(coil.curve, ϕp)
+        pp, qp = get_frame(coil.frame, ϕp, rcp, tangentp, normalp)
+        κ1p, κ2p = CoilForces.get_κ1_κ2(pp, qp, normalp, κp)
+        
+        # Note that factors of a * b / 4 are removed from each sqrt(g) here.
+        # These factors are accounted for later in "prefactor"
+        sqrtg = dℓdϕ * (1 - u_a_over_2 * κ1 - v_b_over_2 * κ2)
+        sqrtgp = dℓdϕp * (1 - up_a_over_2 * κ1p - vp_b_over_2 * κ2p)
+        
+        # This next line stores the vector r - r' in "rc"
+        @. rc += u_a_over_2 * p + v_b_over_2 * q - rcp - up_a_over_2 * pp - vp_b_over_2 * qp
+        return d_utilde_d_uhat * d_vtilde_d_vhat * sqrtg * sqrtgp * dot(tangent, tangentp) / (norm(rc) + 1.0e-30)
+    end
+
+    inductance_cubature_func_1(xp) = inductance_cubature_func_cases(xp, false, false)
+    inductance_cubature_func_2(xp) = inductance_cubature_func_cases(xp, false, true)
+    inductance_cubature_func_3(xp) = inductance_cubature_func_cases(xp, true, false)
+    inductance_cubature_func_4(xp) = inductance_cubature_func_cases(xp, true, true)
+
+    inductance_xmin = [-1, -1, 0, 0, 0, 0]
+    inductance_xmax = [1, 1, 2π, 1, 1, 2π]
+    
+    val1, err = hcubature(
+        inductance_cubature_func_1, 
+        inductance_xmin,
+        inductance_xmax;
+        atol=abstol,
+        rtol=reltol
+    )
+    val2, err = hcubature(
+        inductance_cubature_func_2, 
+        inductance_xmin,
+        inductance_xmax;
+        atol=abstol,
+        rtol=reltol
+    )
+    val3, err = hcubature(
+        inductance_cubature_func_3, 
+        inductance_xmin,
+        inductance_xmax;
+        atol=abstol,
+        rtol=reltol
+    )
+    val4, err = hcubature(
+        inductance_cubature_func_4, 
+        inductance_xmin,
+        inductance_xmax;
+        atol=abstol,
+        rtol=reltol
+    )
+    val = val1 + val2 + val3 + val4
+    sqrt_g_factor = 1 / 4
+    prefactor = μ0 / (4π) * sqrt_g_factor * sqrt_g_factor
+    return prefactor * val
 end

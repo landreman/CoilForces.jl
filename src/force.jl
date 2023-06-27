@@ -147,6 +147,8 @@ function force_finite_thickness(coil::CoilRectangularXSection, ϕ; reltol=1e-3, 
     dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
     p, q = get_frame(coil.frame, ϕ, r0, tangent, normal)
     κ1, κ2 = CoilForces.get_κ1_κ2(p, q, normal, κ)
+    reltol_for_B = reltol * 0.1
+    abstol_for_B = abstol * 0.1
 
     function force_cubature_func(xp)
         u = xp[1]
@@ -155,14 +157,43 @@ function force_finite_thickness(coil::CoilRectangularXSection, ϕ; reltol=1e-3, 
         v_b_over_2 = 0.5 * v * coil.b
         sqrtg = 1 - u_a_over_2 * κ1 - v_b_over_2 * κ2
         r_eval = r0 + u_a_over_2 * p + v_b_over_2 * q
-        B = B_finite_thickness_normalized(
+        B1 = B_finite_thickness_normalized(
             coil,
             r_eval,
-            reltol=reltol,
-            abstol=abstol,
+            reltol=reltol_for_B,
+            abstol=abstol_for_B,
             ϕ_shift=ϕ,
+            u_range=(-1, u),
+            v_range=(-1, v),
         )
-        return sqrtg * cross(tangent, B)
+        B2 = B_finite_thickness_normalized(
+            coil,
+            r_eval,
+            reltol=reltol_for_B,
+            abstol=abstol_for_B,
+            ϕ_shift=ϕ,
+            u_range=(u, 1),
+            v_range=(-1, v),
+        )
+        B3 = B_finite_thickness_normalized(
+            coil,
+            r_eval,
+            reltol=reltol_for_B,
+            abstol=abstol_for_B,
+            ϕ_shift=ϕ,
+            u_range=(-1, u),
+            v_range=(v, 1),
+        )
+        B4 = B_finite_thickness_normalized(
+            coil,
+            r_eval,
+            reltol=reltol_for_B,
+            abstol=abstol_for_B,
+            ϕ_shift=ϕ,
+            u_range=(u, 1),
+            v_range=(v, 1),
+        )
+        return sqrtg * cross(tangent, B1 + B2 + B3 + B4)
     end
 
     force_xmin = [-1, -1]

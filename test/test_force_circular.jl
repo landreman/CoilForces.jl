@@ -128,7 +128,7 @@ using Test
         curve = CurveCircle(R0)
         coil = CoilRectangularXSection(curve, I, a, b, FrameCircle())
 
-        reltol = 1e-3
+        reltol = 3e-3
         abstol = 1e-10
 
         ϕ = 0
@@ -138,7 +138,7 @@ using Test
         println("analytic force:   $(force_analytic)   rel diff: $((force[1] - force_analytic) / force_analytic)")
         @test abs(force[2]) < 1e-13
         @test abs(force[3]) < 1e-8
-        @test force[1] ≈ force_analytic rtol=1e-1
+        @test force[1] ≈ force_analytic rtol=1e-3
     end
 
     @testset "Test that force calculation for a finite thickness coil (using single 5D integral) matches the analytic result" begin

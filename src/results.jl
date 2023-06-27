@@ -1045,14 +1045,14 @@ end
 function save_high_fidelity_force_for_circular_coil_rectangular_xsection()
     #reltol = 3e-7
     #abstol = 3e-7
-    reltol = 1e-2
-    abstol = 1e-2
+    reltol = 1e-3
+    abstol = 1e-3
 
     # geometric mean of a and b [meters]
     d = 0.01
 
-    b_over_as = [1.0]
-    #b_over_as = 10 .^ collect(((-1.0):(0.5):(1.0)))
+    #b_over_as = [1.0]
+    b_over_as = 10 .^ collect(((-1.0):(0.5):(1.0)))
     println("Values of b/a that will be evaluated: ", b_over_as)
 
     # Major radius of coil [meters]
@@ -2196,6 +2196,135 @@ function debug_stalling_B_integral(;
     plot(p1, p2, p3, p4, p5, p6, layout=(6, 1), dpi=100, size=(700, 600))
 end
 
+function debug_stalling_force_integral()
+    R0 = 1.0
+    I = 1.0
+    a = 0.01
+    b = 0.01
+    ϕ = 0.0
+    reltol = 1e-3
+    abstol = 1e-3
+    curve = CurveCircle(R0)
+    coil = CoilRectangularXSection(curve, I, a, b, FrameCircle())
+
+    maxevals = 1000
+    source_points = zeros(maxevals, 2)
+    force_integrand_evals = zeros(maxevals, 3)
+
+    # Next comes a copy of force_finite_thickness()
+    dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
+    p, q = get_frame(coil.frame, ϕ, r0, tangent, normal)
+    κ1, κ2 = CoilForces.get_κ1_κ2(p, q, normal, κ)
+    
+    myindex = 0
+    function force_cubature_func(xp)
+        myindex += 1
+        if myindex % 200 == 0
+            println("myindex ", myindex)
+        end
+        source_points[myindex, :] = xp
+        u = xp[1]
+        v = xp[2]
+        u_a_over_2 = 0.5 * u * coil.a
+        v_b_over_2 = 0.5 * v * coil.b
+        sqrtg = 1 - u_a_over_2 * κ1 - v_b_over_2 * κ2
+        r_eval = r0 + u_a_over_2 * p + v_b_over_2 * q
+
+        B1 = B_finite_thickness_normalized(
+            coil,
+            r_eval,
+            reltol=reltol,
+            abstol=abstol,
+            ϕ_shift=ϕ,
+            u_range=(-1, u),
+            v_range=(-1, v),
+        )
+        B2 = B_finite_thickness_normalized(
+            coil,
+            r_eval,
+            reltol=reltol,
+            abstol=abstol,
+            ϕ_shift=ϕ,
+            u_range=(u, 1),
+            v_range=(-1, v),
+        )
+        B3 = B_finite_thickness_normalized(
+            coil,
+            r_eval,
+            reltol=reltol,
+            abstol=abstol,
+            ϕ_shift=ϕ,
+            u_range=(-1, u),
+            v_range=(v, 1),
+        )
+        B4 = B_finite_thickness_normalized(
+            coil,
+            r_eval,
+            reltol=reltol,
+            abstol=abstol,
+            ϕ_shift=ϕ,
+            u_range=(u, 1),
+            v_range=(v, 1),
+        )
+        to_return  = sqrtg * cross(tangent, B1 + B2 + B3 + B4)
+
+        """
+        B = B_finite_thickness_normalized(
+            coil,
+            r_eval,
+            reltol=reltol,
+            abstol=abstol,
+            ϕ_shift=ϕ,
+        )
+        to_return  = sqrtg * cross(tangent, B)
+        """
+
+        force_integrand_evals[myindex, :] = to_return
+        return to_return
+    end
+
+    force_xmin = [-1, -1]
+    force_xmax = [1, 1]
+    
+    val, err = hcubature(
+        force_cubature_func, 
+        force_xmin,
+        force_xmax;
+        atol=abstol * 10,
+        rtol=reltol * 10,
+        maxevals=maxevals - 50,
+    )
+    #print("Number of function evals: ", myindex)
+
+    start_index = 1
+    end_index = myindex
+    println("max and min of force_integrand_evals y:", maximum(force_integrand_evals[start_index:end_index, 2]), " ", minimum(force_integrand_evals[start_index:end_index, 2]))
+    println("max and min of force_integrand_evals z:", maximum(force_integrand_evals[start_index:end_index, 3]), " ", minimum(force_integrand_evals[start_index:end_index, 3]))
+
+    """
+    p1 = plot(source_points[start_index:end_index, 1], ylabel="u", label=false)
+    p2 = plot(source_points[start_index:end_index, 2], ylabel="v", label=false)
+    p3 = plot(abs.(force_integrand_evals[start_index:end_index, 1]), ylabel="f integrand x", label=false, yscale=:log10)
+    p4 = plot(abs.(force_integrand_evals[start_index:end_index, 2]), ylabel="f integrand y", label=false)
+    p5 = plot(abs.(force_integrand_evals[start_index:end_index, 3]), ylabel="f integrand z", label=false)
+    #return val
+    #plot(p1, p2, p3, layout=(3, 1))
+    plot(p1, p2, p3, p4, p5, layout=(5, 1), dpi=100, size=(700, 600))
+    """
+    scatter(
+        source_points[start_index:end_index, 1],
+        source_points[start_index:end_index, 2],
+        zcolor=abs.(force_integrand_evals[start_index:end_index, 1]),
+        xlabel="u",
+        ylabel="v",
+        dpi=100, 
+        size=(700, 600),
+        ms=2,
+        msw=0,
+        label=false,
+    )
+end
+
 function reproduce_Sienas_plot_of_locally_circular_approx()
     curve = get_curve("hsx", 1)
     current = 1e6
@@ -2589,8 +2718,9 @@ function save_inductance_b_scan_rectangular_xsection(;
 
         @time L_filament = inductance_filament_adaptive(coil; abstol=0, reltol=1e-3)
         #if sqrt(a^2 + b^2) < 1 / 11.5
-        if sqrt(a^2 + b^2) < 0.075
-                time_data = @timed L_hifi = inductance_finite_thickness(coil; reltol=reltol, abstol=abstol)
+        #if sqrt(a^2 + b^2) < 0.075
+        if true
+            time_data = @timed L_hifi = inductance_finite_thickness(coil; reltol=reltol, abstol=abstol)
         else
             time_data = @timed L_hifi = NaN
         end
