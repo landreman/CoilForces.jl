@@ -1052,7 +1052,7 @@ function save_high_fidelity_force_for_circular_coil_rectangular_xsection()
     d = 0.01
 
     #b_over_as = [1.0]
-    b_over_as = 10 .^ collect(((-1.0):(0.5):(1.0)))
+    b_over_as = 10 .^ collect(((-1.5):(0.125):(1.5)))
     println("Values of b/a that will be evaluated: ", b_over_as)
 
     # Major radius of coil [meters]

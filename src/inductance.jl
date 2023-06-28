@@ -298,34 +298,19 @@ function inductance_finite_thickness(coil::CoilRectangularXSection; reltol=1e-3,
     inductance_xmin = [-1, -1, 0, 0, 0, 0]
     inductance_xmax = [1, 1, 2π, 1, 1, 2π]
     
-    val1, err = hcubature(
-        inductance_cubature_func_1, 
+    hcubature_wrapper(func) = hcubature(
+        func, 
         inductance_xmin,
         inductance_xmax;
         atol=abstol,
         rtol=reltol
     )
-    val2, err = hcubature(
-        inductance_cubature_func_2, 
-        inductance_xmin,
-        inductance_xmax;
-        atol=abstol,
-        rtol=reltol
-    )
-    val3, err = hcubature(
-        inductance_cubature_func_3, 
-        inductance_xmin,
-        inductance_xmax;
-        atol=abstol,
-        rtol=reltol
-    )
-    val4, err = hcubature(
-        inductance_cubature_func_4, 
-        inductance_xmin,
-        inductance_xmax;
-        atol=abstol,
-        rtol=reltol
-    )
+
+    val1, err = hcubature_wrapper(inductance_cubature_func_1)
+    val2, err = hcubature_wrapper(inductance_cubature_func_2)
+    val3, err = hcubature_wrapper(inductance_cubature_func_3)
+    val4, err = hcubature_wrapper(inductance_cubature_func_4)
+    
     val = val1 + val2 + val3 + val4
     sqrt_g_factor = 1 / 4
     prefactor = μ0 / (4π) * sqrt_g_factor * sqrt_g_factor

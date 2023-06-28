@@ -128,14 +128,24 @@ using Test
         curve = CurveCircle(R0)
         coil = CoilRectangularXSection(curve, I, a, b, FrameCircle())
 
+        ϕ = 0
+        force_analytic = analytic_force_per_unit_length(coil)
+        println("analytic force:   $(force_analytic)")
+
+        # Test the default hifi algorithm:
+        reltol = 1e-2
+        abstol = 1e-10
+        @time force = force_finite_thickness(coil, ϕ, reltol=reltol, abstol=abstol)
+        println("numerical force: $(force)   rel diff: $((force[1] - force_analytic) / force_analytic)")
+        @test abs(force[2]) < 1e-13
+        @test abs(force[3]) < 1e-8
+        @test force[1] ≈ force_analytic rtol=1e-3
+
+        # Repeat the test with the alternate version of the algorithm:
         reltol = 3e-3
         abstol = 1e-10
-
-        ϕ = 0
-        @time force = force_finite_thickness(coil, ϕ, reltol=reltol, abstol=abstol)
-        force_analytic = analytic_force_per_unit_length(coil)
-        println("numerical force: $(force)")
-        println("analytic force:   $(force_analytic)   rel diff: $((force[1] - force_analytic) / force_analytic)")
+        @time force = CoilForces.force_finite_thickness_from_B(coil, ϕ, reltol=reltol, abstol=abstol)
+        println("numerical force: $(force)   rel diff: $((force[1] - force_analytic) / force_analytic)")
         @test abs(force[2]) < 1e-13
         @test abs(force[3]) < 1e-8
         @test force[1] ≈ force_analytic rtol=1e-3

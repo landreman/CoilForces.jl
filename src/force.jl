@@ -147,6 +147,93 @@ function force_finite_thickness(coil::CoilRectangularXSection, ϕ; reltol=1e-3, 
     dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
     p, q = get_frame(coil.frame, ϕ, r0, tangent, normal)
     κ1, κ2 = CoilForces.get_κ1_κ2(p, q, normal, κ)
+
+    function force_cubature_func_cases(xp, u_case, v_case)
+        u = xp[1]
+        v = xp[2]
+        uhat = xp[3]
+        vhat = xp[4]
+        ϕp = ϕ + xp[5]
+
+        # For the change of variables that follows, see
+        # 20230626-02 Moving singularity to a corner.lyx
+        if u_case
+            up = u + (1 - u) * uhat
+            d_utilde_d_uhat = 1 - u
+        else
+            up = -1 + (u + 1) * uhat
+            d_utilde_d_uhat = u + 1
+        end
+        if v_case
+            vp = v + (1 - v) * vhat
+            d_vtilde_d_vhat = 1 - v
+        else
+            vp = -1 + (v + 1) * vhat
+            d_vtilde_d_vhat = v + 1
+        end
+
+        u_a_over_2 = 0.5 * u * coil.a
+        v_b_over_2 = 0.5 * v * coil.b
+        dℓdϕ, κ, rc, tangent, normal = Frenet_frame_without_torsion(coil.curve, ϕ)
+        p, q = get_frame(coil.frame, ϕ, rc, tangent, normal)
+        κ1, κ2 = CoilForces.get_κ1_κ2(p, q, normal, κ)
+
+        up_a_over_2 = 0.5 * up * coil.a
+        vp_b_over_2 = 0.5 * vp * coil.b
+        dℓdϕp, κp, rcp, tangentp, normalp = Frenet_frame_without_torsion(coil.curve, ϕp)
+        pp, qp = get_frame(coil.frame, ϕp, rcp, tangentp, normalp)
+        κ1p, κ2p = CoilForces.get_κ1_κ2(pp, qp, normalp, κp)
+
+        # Note that dℓdϕ is not included in the non-tilde sqrt(g) but it is
+        # included in the tilde sqrt(g). 
+        sqrtg = (1 - u_a_over_2 * κ1 - v_b_over_2 * κ2)
+        sqrtgp = dℓdϕp * (1 - up_a_over_2 * κ1p - vp_b_over_2 * κ2p)
+        
+        # This next line stores the vector r - r' in "rc"
+        @. rc += u_a_over_2 * p + v_b_over_2 * q - rcp - up_a_over_2 * pp - vp_b_over_2 * qp
+        #return d_utilde_d_uhat * d_vtilde_d_vhat * sqrtg * sqrtgp *
+        #dot(tangent, tangentp) / (norm(rc) + 1.0e-30)
+        
+        temp = 1 / (normsq(rc) + 1.0e-100)
+    
+        return (d_utilde_d_uhat * d_vtilde_d_vhat * sqrtg * sqrtgp * temp * sqrt(temp)) * cross(tangent, cross(tangentp, rc))
+    end
+
+    force_cubature_func_1(xp) = force_cubature_func_cases(xp, false, false)
+    force_cubature_func_2(xp) = force_cubature_func_cases(xp, false, true)
+    force_cubature_func_3(xp) = force_cubature_func_cases(xp, true, false)
+    force_cubature_func_4(xp) = force_cubature_func_cases(xp, true, true)
+
+    force_xmin = [-1, -1, 0, 0, 0]
+    force_xmax = [1, 1, 1, 1, 2π]
+
+    hcubature_wrapper(func) = hcubature(
+        func, 
+        force_xmin,
+        force_xmax;
+        atol=abstol,
+        rtol=reltol
+    )
+    
+    val1, err = hcubature_wrapper(force_cubature_func_1)
+    val2, err = hcubature_wrapper(force_cubature_func_2)
+    val3, err = hcubature_wrapper(force_cubature_func_3)
+    val4, err = hcubature_wrapper(force_cubature_func_4)
+
+    val = val1 + val2 + val3 + val4
+    prefactor = μ0 * coil.current * coil.current / (64 * π)
+    return prefactor * val
+end
+
+"""
+Compute the force-per-unit-length for a finite-thickness rectangular-cross-section coil.
+
+ϕ: Curve parameter at which the force-per-unit-length will be computed.
+"""
+function force_finite_thickness_from_B(coil::CoilRectangularXSection, ϕ; reltol=1e-3, abstol=1e-5)
+    dℓdϕ, κ, τ, r0, tangent, normal, binormal = Frenet_frame(coil.curve, ϕ)
+    p, q = get_frame(coil.frame, ϕ, r0, tangent, normal)
+    κ1, κ2 = CoilForces.get_κ1_κ2(p, q, normal, κ)
     reltol_for_B = reltol * 0.1
     abstol_for_B = abstol * 0.1
 
