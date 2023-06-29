@@ -151,6 +151,44 @@ using Test
         @test force[1] ≈ force_analytic rtol=1e-3
     end
 
+    @testset "For circular coil with rectangular xsection, check that hifi matches filament for a range of b/a values" begin
+        reltol = 3e-3
+        abstol = 3e-3
+
+        # geometric mean of a and b [meters]
+        d = 0.01
+
+        b_over_as = 10 .^ collect(((-1.0):(0.5):(1.0)))
+        println("Values of b/a that will be evaluated: ", b_over_as)
+
+        # Major radius of coil [meters]
+        R0 = 1.0
+
+        # Total current [Amperes]
+        I = 1.0
+
+        as = similar(b_over_as)
+        bs = similar(b_over_as)
+        force_hifi = similar(b_over_as)
+        force_analytic = similar(b_over_as)
+        println("Number of threads: $(Threads.nthreads())")
+        Threads.@threads for ja in eachindex(b_over_as)
+            b_over_a = b_over_as[ja]
+            a = d / sqrt(b_over_a)
+            b = d * sqrt(b_over_a)
+            as[ja] = a
+            bs[ja] = b
+            curve = CurveCircle(R0)
+            coil = CoilRectangularXSection(curve, I, a, b, FrameCircle())
+
+            time_data = @timed force = force_finite_thickness(coil, 0.0; reltol=reltol, abstol=abstol)
+            force_hifi[ja] = force[1]
+            force_analytic[ja] = analytic_force_per_unit_length(coil)
+            println("  thread: $(Threads.threadid())  a: $(a)  b: $(b)  time: $(time_data.time)  analytic force: $(force_analytic[ja])  hifi force: $(force_hifi[ja])  ratio: $(force_analytic[ja] / force_hifi[ja])")
+        end
+        @test force_hifi ≈ force_analytic rtol=4e-3
+    end
+
     @testset "Test that force calculation for a finite thickness coil (using single 5D integral) matches the analytic result" begin
         # Major radius of coil [meters]
         R0 = 2.3

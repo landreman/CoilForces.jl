@@ -1098,6 +1098,62 @@ function save_high_fidelity_force_for_circular_coil_rectangular_xsection()
     
 end
 
+function plot_high_fidelity_force_for_circular_coil_rectangular_xsection()
+    directory = "/Users/mattland/Box/work23/20230625-01-rectangular_xsection_force/"
+    filenames = [
+        #"circular_coil_rectangular_xsection_force_d0.001_rtol0.01_atol0.01_2023-06-29T13.47.47.338.dat",
+        "circular_coil_rectangular_xsection_force_d0.001_rtol0.001_atol0.001_2023-06-29T13.50.25.670.dat",
+    ]
+    filenames = [
+        "circular_coil_rectangular_xsection_force_d0.01_rtol0.01_atol0.01_2023-06-27T20.47.20.198.dat",
+        "circular_coil_rectangular_xsection_force_d0.01_rtol0.001_atol0.001_2023-06-27T20.50.34.491.dat",
+    ]
+    plot()
+    common_R0 = -1.0
+    common_I = -1.0
+    common_d = -1.0
+    for j in eachindex(filenames)
+        filename = filenames[j]
+        file = open(directory * filename, "r")
+
+        # Read and parse header:
+        line = readline(file)
+        line = readline(file)
+        splitline = split(line, ",")
+        R0 = parse(Float64, splitline[1])
+        I = parse(Float64, splitline[2])
+        d = parse(Float64, splitline[3])
+        reltol = parse(Float64, splitline[4])
+        abstol = parse(Float64, splitline[5])
+        close(file)
+        # Make sure all of the files being plotted differ only in tolerances:
+        if common_R0 < 0
+            common_R0 = R0
+        else
+            @assert common_R0 ≈ R0
+        end 
+        if common_I < 0
+            common_I = I
+        else
+            @assert common_I ≈ I
+        end 
+        if common_d < 0
+            common_d = d
+        else
+            @assert common_d ≈ d
+        end 
+
+        f = CSV.File(directory * filename, header=3)
+        plot!(f.b ./ f.a, f.Fx_hifi, 
+            label="hifi tol $(reltol)",
+            xscale=:log10
+        )
+        plot!(f.b ./ f.a, f.Fx_analytic, label="1D tol $(reltol)")
+    end
+    xlabel!("b / a")
+    ylabel!("d F_x / d ℓ")
+end
+
 function save_high_fidelity_Bz_for_circular_coil_a_scan()
     reltol = 1e-8
     abstol = 1e-8
