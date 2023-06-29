@@ -1154,6 +1154,134 @@ function plot_high_fidelity_force_for_circular_coil_rectangular_xsection()
     ylabel!("d F_x / d ℓ")
 end
 
+function save_force_b_scan_rectangular_xsection(;
+    a=0.01,
+    hsx=true,
+    reltol = 1e-1,
+    abstol = 1e-1,
+    ϕ = 0.0,
+)
+
+    #bs = a * 10 .^ collect(((-1.0):(0.125):(1)))
+    bs = a * 10 .^ collect(((-1.0):(0.125):(1)))
+    bs = bs[bs .< 0.74]  # Avoid very large values
+    nb = length(bs)
+    println("a = $(a)")
+    println("Values of b that will be evaluated: ", bs)
+
+    # Total current [Amperes]
+    I = 150e3
+
+    if hsx
+        config_str = "hsx"
+    else
+        config_str = "circle"
+    end
+
+    forces_hifi = zeros(nb, 3)
+    forces_filament = zeros(nb, 3)
+    times = similar(bs)
+    println("Number of threads: ", Threads.nthreads())
+    Threads.@threads for jb in 1:nb
+        # CurveXYZFourier has buffers that need to have distinct contents in
+        # different threads, so we define the curve here inside the loop, where
+        # all new variables are distinct for each thread.
+        if hsx
+            curve = get_curve("hsx", 1)
+        else
+            # Major radius of coil [meters]
+            R0 = 1.0
+            curve = CurveCircle(R0)
+        end
+    
+        b = bs[jb]
+        #println("b = ", b)
+        println("Thread $(Threads.threadid()) is handling jb = $(jb) of $(nb): b = ", b)
+        coil = CoilRectangularXSection(curve, I, a, b, FrameCentroid(curve))
+
+        @time force_filament = force_filament_adaptive(coil, ϕ; abstol=0, reltol=1e-5)
+        time_data = @timed force_hifi = force_finite_thickness(coil, ϕ; reltol=reltol, abstol=abstol)
+        times[jb] = time_data.time
+        forces_hifi[jb, :] = force_hifi
+        forces_filament[jb, :] = force_filament
+        println("  time: $(time_data.time)  F_filament: $(force_filament)  F_hifi: $(force_hifi)  ratio: $(force_filament ./ force_hifi)")
+    end
+
+    directory = "/Users/mattland/Box/work23/20230629-01-rectangular_xsection_force_b_scans/"
+    date_str = replace("$(Dates.now())", ":" => ".")
+    filename = "force_rectangular_xsection_$(config_str)_a$(a)_phi$(ϕ)_rtol$(reltol)_atol$(abstol)_$(date_str).dat"
+    open(directory * filename, "w") do file
+        write(file, "a, ϕ, reltol, abstol\n")
+        write(file, "$(a),$(ϕ),$(reltol),$(abstol)\n")
+        write(file, "b,Fx_hifi,Fy_hifi,Fz_hifi,Fx_filament,Fy_filament,Fz_filament,time\n")
+        for jb in eachindex(bs)
+            write(file, "$(bs[jb]),$(forces_hifi[jb, 1]),$(forces_hifi[jb, 2]),$(forces_hifi[jb, 3]),$(forces_filament[jb, 1]),$(forces_filament[jb, 2]),$(forces_filament[jb, 3]),$(times[jb])\n")
+        end
+    end
+    
+end
+
+function plot_force_b_scan_HSX_rectangular_xsection()
+    directory = "/Users/mattland/Box/work23/20230629-01-rectangular_xsection_force_b_scans/"
+    filenames = [
+        "force_rectangular_xsection_hsx_a0.001_phi0.0_rtol0.001_atol0.001_2023-06-29T14.18.43.294.dat",
+        #"force_rectangular_xsection_hsx_a0.001_phi0.0_rtol0.01_atol0.01_2023-06-29T14.16.26.488.dat",
+        "force_rectangular_xsection_hsx_a0.01_phi0.0_rtol0.001_atol0.001_2023-06-29T14.14.48.375.dat",
+        #"force_rectangular_xsection_hsx_a0.01_phi0.0_rtol0.01_atol0.01_2023-06-29T14.12.17.739.dat",
+        #"force_rectangular_xsection_hsx_a0.1_phi0.0_rtol0.01_atol0.01_2023-06-29T14.20.37.757.dat",
+        "force_rectangular_xsection_hsx_a0.1_phi0.0_rtol0.001_atol0.001_2023-06-29T14.59.08.049.dat",
+    ]
+    n = length(filenames)
+
+    scalefontsizes()
+    scalefontsizes(1.0)
+    plot(size=(500, 500))
+    #    xscale=:log10,
+    #    yscale=:log10,
+    #)
+    # For colors, see http://juliagraphics.github.io/Colors.jl/stable/namedcolors/
+    colors_filament = [:salmon, :limegreen, :deepskyblue]  # light
+    colors_hifi = [:firebrick, :darkgreen, :blue3] # dark
+    for j in 1:n
+        filename = filenames[j]
+        f = CSV.File(directory * filename, header=3)
+    
+        plot!(f.b, f.Fz_hifi / 1000, 
+            xscale=:log10,
+            minorgrid=true,
+            label=false,
+            lw=4,
+            color=colors_hifi[j]
+        )
+        plot!(f.b, 
+            f.Fz_filament / 1000,
+            label=false,
+            lw=2,
+            ls=:dot,
+            color=colors_filament[j]
+        )
+    end
+    xlims!(8e-5, 1)
+    ylims!(0, 110)
+
+    
+    filament_string = "1D"
+    annotate!(5e-4, 85, text("a=0.001 m,\n" * filament_string, colors_filament[1]))
+    annotate!(6e-3, 47, text("a=0.01 m,\n" * filament_string, colors_filament[2]))
+    annotate!(0.08, 12, text("a=0.1 m,\n" * filament_string, colors_filament[3]))
+
+    hifi_string = "5D"
+    annotate!(4e-3, 97, text("a=0.001 m,\n" * hifi_string, colors_hifi[1]))
+    annotate!(8e-2, 53, text("a=0.01 m,\n" * hifi_string, colors_hifi[2]))
+    annotate!(4.5e-1, 22, text("a=0.1 m,\n" * hifi_string, colors_hifi[3]))
+
+    xlabel!("Conductor thickness b [meters]")
+    ylabel!("z component of self-force per length, \$dF_z/d\\ell\$   [kN/m]")
+
+    savefig(directory * "20230629-01-force_rectangular_xsection_hsx_ab_scan.pdf")
+    
+end
+
 function save_high_fidelity_Bz_for_circular_coil_a_scan()
     reltol = 1e-8
     abstol = 1e-8
