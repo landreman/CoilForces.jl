@@ -152,6 +152,34 @@ using Test
         """
     end
 
+    @testset "Reproduce paper inductance figure for HSX rectangular xsection" begin
+        reltol = 1e-3
+        abstol = 1e-3
+        a = 0.01
+        #bs = a * 10 .^ collect(((-1.0):(0.125):(1)))
+        bs = a * 10 .^ collect(((-1.0):(0.5):(1)))
+        nb = length(bs)
+    
+        # Total current [Amperes]
+        I = 1.0
+    
+        curve = get_curve("hsx", 1)
+        inductances_hifi = similar(bs)
+        inductances_filament = similar(bs)
+        for jb in 1:nb
+            b = bs[jb]
+            println("b = ", b)
+            coil = CoilRectangularXSection(curve, I, a, b, FrameCentroid(curve))
+    
+            L_filament = inductance_filament_adaptive(coil; abstol=0, reltol=1e-3)
+            time_data = @timed L_hifi = inductance_finite_thickness(coil; reltol=reltol, abstol=abstol)
+            inductances_hifi[jb] = L_hifi
+            inductances_filament[jb] = L_filament
+            println("  time: $(time_data.time)  L_filament: $(L_filament)  L_hifi: $(L_hifi)  ratio: $(L_filament / L_hifi)")
+        end
+        @test inductances_hifi ≈ inductances_filament rtol=1e-3
+    end
+
     @testset "Regularized filament methods for inductance should be nearly independent of number of quadrature points" begin
         curve = get_curve("hsx", 1)
         regularization = 0.01 ^ 2
