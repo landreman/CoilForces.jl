@@ -1385,6 +1385,43 @@ function plot_force_phi_scan_HSX_rectangular_xsection()
     
 end
 
+function time_hifi_force_HSX_rectangular()
+    tols = 10 .^ (-collect(1:0.25:3))
+
+    curve = get_curve("hsx", 1)
+    # Dimensions in David Anderson's note:
+    a = 0.1296
+    b = 0.0568
+    coil = CoilRectangularXSection(curve, 1.0, a, b, FrameCentroid(curve))
+    ϕ = 0.0
+    for tol in tols
+        time_data = @timed dFdl_hifi = force_finite_thickness(coil, ϕ; reltol=tol, abstol=0)
+        println("dF/dl = $(dFdl_hifi),  rtol = $(tol),  time = $(time_data.time)")
+    end
+end
+
+function force_HSX_rectangular_filament_resolution_scan()
+    nns = 100
+    ns = [Int(round(10.0 ^ j)) for j in range(0.5, 2, length=nns)]
+
+    curve = get_curve("hsx", 1)
+    # Dimensions in David Anderson's note:
+    a = 0.1296
+    b = 0.0568
+    I = 1.0
+    ϕ = 0.0
+    coil = CoilRectangularXSection(curve, I, a, b, FrameCentroid(curve))
+    function compute_force(n)
+        position, tangent = position_and_tangent(curve, ϕ)
+        B = B_singularity_subtraction_fixed(coil, ϕ, n)
+        return I * cross(tangent, B)
+    end
+    for n in ns
+        time_data = @timed dFdl = compute_force(n)
+        println("dF/dl = $(dFdl),  n = $(n),  time = $(time_data.time)")
+    end
+end
+
 function save_high_fidelity_Bz_for_circular_coil_a_scan()
     reltol = 1e-8
     abstol = 1e-8
@@ -3031,7 +3068,35 @@ function save_inductance_b_scan_rectangular_xsection(;
     
 end
 
+function time_hifi_inductance_HSX_rectangular()
+    tols = 10 .^ (-collect(1:0.25:5))
 
+    curve = get_curve("hsx", 1)
+    # Dimensions in David Anderson's note:
+    a = 0.1296
+    b = 0.0568
+    coil = CoilRectangularXSection(curve, 1.0, a, b, FrameCentroid(curve))
+    for tol in tols
+        time_data = @timed L_hifi = inductance_finite_thickness(coil; reltol=tol, abstol=0)
+        println("L = $(L_hifi),  rtol = $(tol),  time = $(time_data.time)")
+    end
+end
+
+function inductance_HSX_rectangular_filament_resolution_scan()
+    nns = 100
+    ns = [Int(round(10.0 ^ j)) for j in range(0.5, 2, length=nns)]
+
+    curve = get_curve("hsx", 1)
+    # Dimensions in David Anderson's note:
+    a = 0.1296
+    b = 0.0568
+    coil = CoilRectangularXSection(curve, 1.0, a, b, FrameCentroid(curve))
+    regularization = compute_regularization(coil)
+    for n in ns
+        time_data = @timed L = inductance_filament_fixed_singularity_subtraction(curve, regularization, n)
+        println("L = $(L),  n = $(n),  time = $(time_data.time)")
+    end
+end
 
 function plot_inductance_b_scan_rectangular_xsection()
     directory = "/Users/mattland/Box/work23/20230517-01-inductance_a_scans/"
