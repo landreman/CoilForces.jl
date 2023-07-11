@@ -1282,6 +1282,109 @@ function plot_force_b_scan_HSX_rectangular_xsection()
     
 end
 
+function save_force_phi_scan_HSX_rectangular_xsection(;
+    a = 0.1296,
+    b = 0.0568,
+    reltol = 1e-1,
+    abstol = 1e-1,
+    n = 20
+)
+    println("a = $(a)  b = $(b)  n = $(n)")
+    ϕs = [(j - 1) * 2π / n for j in 1:n]
+
+    # Total current [Amperes]
+    I = 150e3
+
+    forces_hifi = zeros(n, 3)
+    forces_filament = zeros(n, 3)
+    times = zeros(n)
+    println("Number of threads: ", Threads.nthreads())
+    Threads.@threads for j in 1:n
+        # CurveXYZFourier has buffers that need to have distinct contents in
+        # different threads, so we define the curve here inside the loop, where
+        # all new variables are distinct for each thread.
+        curve = get_curve("hsx", 1)
+        coil = CoilRectangularXSection(curve, I, a, b, FrameCentroid(curve))
+    
+        ϕ = ϕs[j]
+        println("Thread $(Threads.threadid()) is handling j = $(j) of $(n): ϕ = ", ϕ)
+
+        @time force_filament = force_filament_adaptive(coil, ϕ; abstol=0, reltol=1e-5)
+        time_data = @timed force_hifi = force_finite_thickness(coil, ϕ; reltol=reltol, abstol=abstol)
+        times[j] = time_data.time
+        forces_hifi[j, :] = force_hifi
+        forces_filament[j, :] = force_filament
+        println("  time: $(time_data.time)  F_filament: $(force_filament)  F_hifi: $(force_hifi)  ratio: $(force_filament ./ force_hifi)")
+    end
+
+    directory = "/Users/mattland/Box/work23/20230629-02-rectangular_xsection_force_phi_scans/"
+    date_str = replace("$(Dates.now())", ":" => ".")
+    filename = "force_rectangular_xsection_hsx_a$(a)_b$(b)_n$(n)_rtol$(reltol)_atol$(abstol)_$(date_str).dat"
+    open(directory * filename, "w") do file
+        write(file, "a, b, n, I, reltol, abstol\n")
+        write(file, "$(a),$(b),$(n),$(I),$(reltol),$(abstol)\n")
+        write(file, "phi,Fx_hifi,Fy_hifi,Fz_hifi,Fx_filament,Fy_filament,Fz_filament,time\n")
+        for j in eachindex(ϕs)
+            write(file, "$(ϕs[j]),$(forces_hifi[j, 1]),$(forces_hifi[j, 2]),$(forces_hifi[j, 3]),$(forces_filament[j, 1]),$(forces_filament[j, 2]),$(forces_filament[j, 3]),$(times[j])\n")
+        end
+    end
+    
+end
+
+function plot_force_phi_scan_HSX_rectangular_xsection()
+    directory = "/Users/mattland/Box/work23/20230629-02-rectangular_xsection_force_phi_scans/"
+    filenames = [
+        #"force_rectangular_xsection_hsx_a0.1296_b0.0568_n20_rtol0.1_atol0.1_2023-06-29T15.47.18.121.dat",
+        #"force_rectangular_xsection_hsx_a0.1296_b0.0568_n20_rtol0.01_atol0.01_2023-06-29T15.53.21.525.dat",
+        #"force_rectangular_xsection_hsx_a0.1296_b0.0568_n20_rtol0.001_atol0.001_2023-06-29T15.55.19.400.dat",
+        "force_rectangular_xsection_hsx_a0.1296_b0.0568_n300_rtol0.001_atol0.001_2023-06-29T16.24.34.297.dat",
+    ]
+    n = length(filenames)
+
+    scalefontsizes()
+    scalefontsizes(1.0)
+    plot(size=(500, 400))
+    #    xscale=:log10,
+    #    yscale=:log10,
+    #)
+    # For colors, see http://juliagraphics.github.io/Colors.jl/stable/namedcolors/
+    colors_filament = [:salmon, :limegreen, :deepskyblue]  # light
+    colors_hifi = [:firebrick, :darkgreen, :blue3] # dark
+    colors_filament = [:darkorange]
+    colors_hifi = [:royalblue]
+    for j in 1:n
+        filename = filenames[j]
+        f = CSV.File(directory * filename, header=3)
+    
+        plot!(f.phi, 
+            f.Fz_hifi / 1000, 
+            minorgrid=true,
+            label=false,
+            lw=4,
+            color=colors_hifi[j],
+            titlefontsize=12
+        )
+        plot!(f.phi, 
+            f.Fz_filament / 1000,
+            label=false,
+            lw=2,
+            ls=:dash,
+            color=colors_filament[j]
+        )
+    end
+    xlims!(0, 2π)
+    #ylims!(0, 110)
+
+    annotate!(5.0, -12, text("Reduced model\n(1D integral)", colors_filament[1]))
+    annotate!(3.5, 7, text("High-fidelity model\n(5D integral)", colors_hifi[1]))
+
+    xlabel!("Location along the coil ϕ")
+    title!("z component of self-force per length, \$dF_z/d\\ell\$   [kN/m]")
+
+    savefig(directory * "20230629-02-force_rectangular_xsection_hsx_phi_scan.pdf")
+    
+end
+
 function save_high_fidelity_Bz_for_circular_coil_a_scan()
     reltol = 1e-8
     abstol = 1e-8
@@ -2928,6 +3031,8 @@ function save_inductance_b_scan_rectangular_xsection(;
     
 end
 
+
+
 function plot_inductance_b_scan_rectangular_xsection()
     directory = "/Users/mattland/Box/work23/20230517-01-inductance_a_scans/"
     filenames = [
@@ -3034,4 +3139,44 @@ function save_HSX_rectangular_coil_shape()
             write(file, "$(F[1]), $(F[2]), $(F[3])\n")
         end
     end
+end
+
+function plot_k_and_delta()
+    ratios = 10 .^ collect((-2):0.1:2)
+    δ = similar(ratios)
+    k = similar(ratios)
+    a = 1
+    for j in eachindex(ratios)
+        b = ratios[j]
+        k[j] = rectangular_xsection_k(a, b)
+        δ[j] = rectangular_xsection_δ(a, b)
+    end
+
+    k_color = :red
+    δ_color = :blue
+    scalefontsizes()
+    scalefontsizes(1.31)
+    plot(
+        ratios, 
+        k,
+        label=false,
+        #label="k",
+        color=k_color,
+        xaxis=:log10,
+        minorgrid=true,
+        size=(500, 450)
+    )
+    plot!(
+        ratios,
+        δ,
+        color=δ_color,
+        label=false,
+        #label="δ",
+    )
+    ylims!(0, 6)
+    xlims!(0.01, 100)
+    xlabel!("\$b / a =\$aspect ratio of conductor cross-section")
+    annotate!(12, 4.15, text("k", k_color, 18))
+    annotate!(12, 0.98, text("δ", δ_color, 18))
+    savefig("/Users/mattland/Box/work23/20230709-rectangular_xsection_plot_of_k_and_delta.pdf")
 end
