@@ -339,10 +339,15 @@ using Test
                 B = B_singularity_subtraction_fixed(coil, ϕ0, nϕ)
                 force_per_unit_length_singularity_subtraction = current * cross(tangent0, B)
 
+                B = B_partition_fixed(coil, ϕ0, nϕ, 6.0)
+                force_per_unit_length_partition = current * cross(tangent0, B)
+
                 @test force_per_unit_length_original_fixed ≈ force_per_unit_length_original_adaptive
                 @test force_per_unit_length_original_adaptive ≈ force_per_unit_length_singularity_subtraction rtol=1e-5
+                @test force_per_unit_length_original_adaptive ≈ force_per_unit_length_partition rtol=1e-4
             end
         end
+
     end
 
     @testset "Force from the singularity-subtraction method should match the force from direct quadrature of regularized Biot-Savart. Rectangular x-section." begin
@@ -378,8 +383,12 @@ using Test
                 B = B_singularity_subtraction_fixed(coil, ϕ0, nϕ)
                 force_per_unit_length_singularity_subtraction = current * cross(tangent0, B)
 
+                B = B_partition_fixed(coil, ϕ0, nϕ, 6.0)
+                force_per_unit_length_partition = current * cross(tangent0, B)
+
                 @test force_per_unit_length_original_fixed ≈ force_per_unit_length_original_adaptive rtol=1e-6
                 @test force_per_unit_length_original_adaptive ≈ force_per_unit_length_singularity_subtraction rtol=1e-6
+                @test force_per_unit_length_original_adaptive ≈ force_per_unit_length_partition rtol=1e-4
             end
         end
     end
@@ -492,5 +501,16 @@ using Test
             end
         end
 
+    end
+
+    @testset "Check partition-of-unity analytic integral" begin
+        Δ = 0.7
+        ϵ = 1.3
+        C = 36.0
+        p = 1
+        integrand(ϕ) = (ϕ^2) * exp(-C * (ϕ / ϵ)^2) / ((ϕ^2 + Δ)^1.5)
+        integral_numerical, _ = hquadrature(integrand, -1.0, 1.0)
+        integral_analytic = CoilForces.B_reg_partition_term(Δ, C, ϵ, p)
+        @test integral_analytic ≈ integral_numerical
     end
 end

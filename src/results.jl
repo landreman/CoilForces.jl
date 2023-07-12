@@ -3245,3 +3245,92 @@ function plot_k_and_delta()
     annotate!(12, 0.98, text("δ", δ_color, 18))
     savefig("/Users/mattland/Box/work23/20230709-rectangular_xsection_plot_of_k_and_delta.pdf")
 end
+
+function partition_of_unity_w_scan()
+    nw = 30
+    ws = collect(range(1.0, 20.0, length=nw))
+
+    nϕs = [30, 100, 300]
+    nnϕ = length(nϕs)
+
+    current = 150e3
+    aminor = 0.1
+
+    ϕ_eval = 0.0
+    p = 1
+
+    curve = get_curve("hsx", 1)
+    r_eval = γ(curve, ϕ_eval)
+    coil = CoilCircularXSection(curve, current, aminor)
+    regularization = CoilForces.compute_regularization(coil)
+    errors = zeros(nw, nnϕ)
+    B_true = B_filament_adaptive(coil, r_eval; regularization=regularization)
+    for jnϕ in 1:nnϕ
+        for jw in 1:nw
+            B = B_partition_fixed(coil, ϕ_eval, nϕs[jnϕ], ws[jw]; p=p)
+            errors[jw, jnϕ] = norm(B - B_true)
+        end
+    end
+
+    plot()
+    for jnϕ in 1:nnϕ
+        plot!(
+            ws,
+            errors[:, jnϕ],
+            label="nϕ=$(nϕs[jnϕ])",
+            yscale=:log10
+            )
+    end
+    xlabel!("w")
+    ylabel!("Error in B")
+    title!("p = $(p), aminor = $(aminor)")
+end
+
+
+function partition_of_unity_nϕ_scan()
+    ws = [1.0, 2.0, 5.0, 10.0]
+    nw = length(ws)
+
+    nnϕ = 100
+    nϕs = [Int(round(10.0 ^ x)) for x in range(1.0, 3.0, length=nnϕ)]
+
+    current = 150e3
+    aminor = 0.1
+
+    ϕ_eval = 0.0
+    p = 1
+
+    curve = get_curve("hsx", 1)
+    r_eval = γ(curve, ϕ_eval)
+    coil = CoilCircularXSection(curve, current, aminor)
+    regularization = CoilForces.compute_regularization(coil)
+    errors = zeros(nw, nnϕ)
+    B_true = B_filament_adaptive(coil, r_eval; regularization=regularization, reltol=1e-12, abstol=0)
+    singularity_subtraction_errors = zeros(nnϕ)
+    for jnϕ in 1:nnϕ
+        for jw in 1:nw
+            B = B_partition_fixed(coil, ϕ_eval, nϕs[jnϕ], ws[jw]; p=p)
+            errors[jw, jnϕ] = norm(B - B_true)
+        end
+        B = B_singularity_subtraction_fixed(coil, ϕ_eval, nϕs[jnϕ])
+        singularity_subtraction_errors[jnϕ] = norm(B - B_true)
+    end
+
+    plot(
+        nϕs, 
+        singularity_subtraction_errors,
+        label="singularity subtraction",
+        yscale=:log10
+        )
+    for jw in 1:nw
+        plot!(
+            nϕs,
+            errors[jw, :],
+            label="partition of unity, w=$(ws[jw])",
+            legend=:topright,
+            )
+    end
+    xlabel!("nϕ")
+    ylabel!("Error in B")
+    title!("p = $(p), aminor = $(aminor)")
+end

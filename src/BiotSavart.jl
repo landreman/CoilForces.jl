@@ -36,6 +36,32 @@ function d_B_d_ϕ_singularity_subtracted(coil::Coil, ϕ, r_eval, regularization,
     )
 end
 
+"""
+Partition-of-unity function χ.
+See 20230110-01 Partition-of-unity method for regularized Biot-Savart.lyx
+"""
+function partition_χ(dϕ, C, ϵ, p)
+    return exp(-C * ((2 - 2 * cos(dϕ)) / (ϵ * ϵ)) ^ p)
+end
+
+"""
+Compute the term W which is added in the partition-of-unity method.
+See 20230110-01 Partition-of-unity method for regularized Biot-Savart.lyx
+"""
+function B_reg_partition_term(Δ, C, ϵ, p)
+    d = Δ / (ϵ * ϵ)
+    if p == 1
+        half_C_d = 0.5 * C * d
+        W = exp(half_C_d) * ((1 + C * d) * SpecialFunctions.besselk(0, half_C_d) - C * d * SpecialFunctions.besselk(1, half_C_d))
+    elseif p == 4
+        print("$(d) ")
+        W = -(2 + 0.25 * Base.MathConstants.eulergamma + log(0.25 * d * C ^ 0.25))
+    else
+        throw("p must be 1 or 4")
+    end
+    return W
+end
+
 
 """
     B_filament_fixed(coil::CoilCircularXSection, r_eval, nϕ; regularization=0.0, drop_first_point=false)
@@ -113,6 +139,48 @@ function B_singularity_subtraction_fixed(coil::Coil, ϕ0, nϕ)
         B += d_B_d_ϕ_singularity_subtracted(coil, ϕ, r_eval, regularization_to_use, ϕ0, r_prime_prime_cross_r_prime, dℓdϕ_squared)
     end
     B = B * dϕ + singularity_term(coil, ϕ0)
+    return B
+end
+
+"""
+    B_partition_fixed(coil::Coil, ϕ0, nϕ, w=1.0; C=36.0, p=4)
+
+Evaluate the Biot-Savart law for a coil in the approximation that the coil is an
+infinitesmally thin filament. Use quadrature on a fixed uniform grid with
+specified number of points, nϕ. The partition-of-unity method will be used.
+
+For details see 20230110-01 Partition-of-unity method for regularized Biot-Savart.lyx
+
+ϕ0: curve parameter at which to evaluate B.
+nϕ: number of grid points to use for quadrature.
+w: Factor multiplying dϕ to set the width of the partition-of-unity function.
+C: Factor in the partition-of-unity function.
+p: Exponent in the partition-of-unity function. Must be 1 or 4, but 1 is recommended.
+"""
+function B_partition_fixed(coil::Coil, ϕ0, nϕ, w=5.0; C=36.0, p=1)
+    dϕ = 2π / nϕ
+    B = [0.0, 0.0, 0.0]
+    ϵ = dϕ * w
+    
+    data = γ_and_2_derivatives(coil.curve, ϕ0)
+    r_eval = data[:, 1]
+    r_prime = data[:, 2]
+    r_prime_prime = data[:, 3]
+    
+    dℓdϕ_squared = normsq(r_prime)
+    r_prime_prime_cross_r_prime = cross(r_prime_prime, r_prime)
+    regularization = compute_regularization(coil)
+    Δ = regularization / dℓdϕ_squared
+    ϕ = 0.0
+    for j in 1:nϕ
+        B += (1 - partition_χ(ϕ - ϕ0, C, ϵ, p)) * d_B_d_ϕ(coil, ϕ, r_eval, regularization=regularization)
+        ϕ += dϕ
+    end
+    B = (
+        B * dϕ 
+        - (μ0 * coil.current / (8π * dℓdϕ_squared * sqrt(dℓdϕ_squared)) * B_reg_partition_term(Δ, C, ϵ, p)) 
+        * r_prime_prime_cross_r_prime
+    )
     return B
 end
 
