@@ -329,6 +329,85 @@ function plot_integrand()
 
 end
 
+function plot_integrand_for_rectangular_xsection_paper()
+    coil_num = 1
+    curve = get_curve("hsx", coil_num)
+
+    current = 1.5e5
+
+    # Dimensions in David Anderson's note:
+    a = 0.1296
+    b = 0.0568
+    a = b = 0.02
+
+    # point at which to evaluate the force:
+    ϕ0 = 0.0
+
+    coil = CoilRectangularXSection(curve, current, a, b, FrameCentroid(curve))
+    regularization = compute_regularization(coil)
+
+    nϕ = 1001
+
+    #ϕp = (collect(1:nϕ) .- 1) * 2π / nϕ .- π
+    plot_width = π
+    ϕp = collect(range(ϕ0 - plot_width, ϕ0 + plot_width, length=nϕ))
+    #ϕp = collect(range(-π, π, length=nϕ))
+    integrand = zeros(nϕ, 3)
+    smoothed_integrand = zeros(nϕ, 3)
+
+    data = γ_and_3_derivatives(curve, ϕ0)
+    r_eval = @view data[:, 1]
+    r_prime = @view data[:, 2]
+    r_prime_prime = @view data[:, 3]
+    r_prime_prime_prime = @view data[:, 4]
+
+    dot_factor = dot(r_prime, r_prime_prime)
+    dℓdϕ_squared = normsq(r_prime)
+    for j in 1:nϕ
+        integrand[j, :] = d_B_d_ϕ(coil, ϕp[j], r_eval, regularization=regularization)
+        smoothed_integrand[j, :] = (integrand[j, :] + μ0 * current / (4π) * 0.5 * cross(r_prime_prime, r_prime)
+            * (2 - 2 * cos(ϕp[j] - ϕ0)) / (((2 - 2 * cos(ϕp[j] - ϕ0)) * dℓdϕ_squared + regularization) ^ 1.5))
+
+    end
+
+    scalefontsizes()
+    scalefontsizes(1.2)
+
+    color_original = :red
+    color_singularity_subtraction = :blue
+    plot(size=(550, 500), titlefontsize=14)
+    xyz = "xyz"
+    #plot(ϕ, integrand[:, 1], label="x")
+    #plot!(ϕ, integrand[:, 2], label="y")
+    #plot!(ϕ, integrand[:, 3], label="z")
+    for j in 2:2
+        plot!(ϕp,
+            smoothed_integrand[:, j],
+            color=color_singularity_subtraction,
+            label=false,
+            #label="smoothed, " * xyz[j:j]
+        )
+        plot!(
+            ϕp, 
+            integrand[:, j], 
+            color=color_original,
+            label=false,
+            #label=xyz[j:j]
+        )
+        #plot!(ϕp, smoother_integrand[:, j], label="smoother, " * xyz[j:j], ls=:dot)
+        #plot!(ϕp, smoothest_integrand[:, j], label="smoothest, " * xyz[j:j], ls=:dash)
+    end
+    xlabel!("Location along the coil \$\\tilde{\\phi}\$")
+    ylabel!("\$dB_y/d\\tilde{\\phi}\$  for  \$\\phi=\$$(ϕ0)")
+    title!("Regularized Biot-Savart integrand")
+    xlims!(-π, π)
+    ylims!(-0.9, 0.2)
+    fontsize = 14
+    annotate!(-1.0, -0.2, text("Original,\neq (15)", color_original, fontsize))
+    annotate!(1.12, 0.12, text("With singularity subtraction,\neq (23)", color_singularity_subtraction, fontsize))
+    savefig("/Users/mattland/Box/work23/20230713-01-B_integrand_with_singularity_subtraction.pdf")
+end
+
 function plot_force_convergence_single()
     coil_num = 1
 
@@ -434,6 +513,85 @@ function plot_force_convergence_single_for_talk()
     ylims!(0, 60)
     xlims!(10, 1e3)
     savefig("/Users/mattland/Box/work23/20230511-01-HSX_force_convergence_vs_nquadpoints.pdf")
+end
+
+function plot_force_convergence_single_for_paper()
+    coil_num = 1
+
+    # point at which to evaluate the force:
+    ϕ0 = 0.0
+    #ϕ0 = 4 * 2π/5
+
+    curve = get_curve("hsx", coil_num)
+    # curve = CurveCircle(2.2)
+
+    current = 1.5e5
+
+    # Dimensions in David Anderson's note:
+    a = 0.1296
+    b = 0.0568
+    a = b = 0.02
+
+    coil = CoilRectangularXSection(curve, current, a, b, FrameCentroid(curve))
+    regularization = compute_regularization(coil)
+
+    # Generate numbers of quadrature points to try:
+    nns = 60
+    ns = [Int(round(10 ^ x)) for x in range(1.0, 3.0, length=nns)]
+
+    r_eval, tangent0 = position_and_tangent(curve, ϕ0)
+    force_per_unit_length = zeros(nns)
+    force_per_unit_length_singularity_subtraction = zeros(nns)
+    for jn in 1:nns
+        B = B_filament_fixed(coil, r_eval, ns[jn], regularization=regularization)
+        force_per_unit_length[jn] = current * norm(cross(tangent0, B))
+        #force_per_unit_length[jn] = current * cross(tangent0, B)[1]
+
+        B = B_singularity_subtraction_fixed(coil, ϕ0, ns[jn])
+        force_per_unit_length_singularity_subtraction[jn] = current * norm(cross(tangent0, B))
+        #force_per_unit_length_singularity_subtraction[jn] = current * cross(tangent0, B)[1]
+    end
+
+    scalefontsizes()
+    scalefontsizes(1.3)
+    color_original = :red
+    color_singularity_subtraction = :blue
+
+    factor = 1e-3
+    marker_size = 3.5
+    scatter(
+        ns, 
+        abs.(force_per_unit_length) * factor, 
+        xscale=:log10, 
+        marker=:square,
+        markerstrokecolor=color_original,
+        ms=marker_size,
+        msw=0,
+        #label="original",
+        label=false,
+        framestyle=:box,
+        titlefontsize=15,
+        minorgrid=true,
+        color=color_original,
+        size=(550, 450)
+    )
+    scatter!(
+        ns, 
+        abs.(force_per_unit_length_singularity_subtraction) * factor, 
+        #label="singularity subtraction",
+        label=false,
+        ms=marker_size,
+        msw=0,
+        color=color_singularity_subtraction,
+    )
+    xlabel!("Number of quadrature points")
+    title!("Force per unit length |dF/dℓ| [kN / m]")
+    ylims!(0, 60)
+    xlims!(10, 1e3)
+    fontsize = 14
+    annotate!(60, 26, text("Original, eq (15)", color_original, fontsize))
+    annotate!(70, 54, text("With singularity subtraction, eq (23)", color_singularity_subtraction, fontsize))
+    savefig("/Users/mattland/Box/work23/20230713-02-HSX_force_convergence_vs_nquadpoints.pdf")
 end
 
 function plot_force_convergence_grid()
