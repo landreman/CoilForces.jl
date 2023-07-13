@@ -1,5 +1,6 @@
 using CoilForces
 using Test
+using HCubature
 
 @testset "Test Biot-Savart law" begin
     @testset "For B along the z axis for a circular coil, compare to analytic formula. Filament coil." begin
