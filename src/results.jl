@@ -408,6 +408,88 @@ function plot_integrand_for_rectangular_xsection_paper()
     savefig("/Users/mattland/Box/work23/20230713-01-B_integrand_with_singularity_subtraction.pdf")
 end
 
+function plot_integrand_rectangular_xsection_for_talk()
+    coil_num = 1
+    curve = get_curve("hsx", coil_num)
+
+    current = 1.5e5
+
+    # Dimensions in David Anderson's note:
+    a = 0.1296
+    b = 0.0568
+    a = b = 0.02
+
+    # point at which to evaluate the force:
+    ϕ0 = 0.0
+
+    coil = CoilRectangularXSection(curve, current, a, b, FrameCentroid(curve))
+    regularization = compute_regularization(coil)
+
+    nϕ = 1001
+
+    #ϕp = (collect(1:nϕ) .- 1) * 2π / nϕ .- π
+    plot_width = π
+    ϕp = collect(range(ϕ0 - plot_width, ϕ0 + plot_width, length=nϕ))
+    #ϕp = collect(range(-π, π, length=nϕ))
+    integrand = zeros(nϕ, 3)
+    smoothed_integrand = zeros(nϕ, 3)
+
+    data = γ_and_3_derivatives(curve, ϕ0)
+    r_eval = @view data[:, 1]
+    r_prime = @view data[:, 2]
+    r_prime_prime = @view data[:, 3]
+    r_prime_prime_prime = @view data[:, 4]
+
+    dot_factor = dot(r_prime, r_prime_prime)
+    dℓdϕ_squared = normsq(r_prime)
+    for j in 1:nϕ
+        integrand[j, :] = d_B_d_ϕ(coil, ϕp[j], r_eval, regularization=regularization)
+        smoothed_integrand[j, :] = (integrand[j, :] + μ0 * current / (4π) * 0.5 * cross(r_prime_prime, r_prime)
+            * (2 - 2 * cos(ϕp[j] - ϕ0)) / (((2 - 2 * cos(ϕp[j] - ϕ0)) * dℓdϕ_squared + regularization) ^ 1.5))
+
+    end
+
+    scalefontsizes()
+    scalefontsizes(1.2)
+
+    color_original = :red
+    color_singularity_subtraction = :blue
+    plot(size=(550, 500), titlefontsize=14)
+    xyz = "xyz"
+    #plot(ϕ, integrand[:, 1], label="x")
+    #plot!(ϕ, integrand[:, 2], label="y")
+    #plot!(ϕ, integrand[:, 3], label="z")
+    for j in 2:2
+        if false
+            plot!(ϕp,
+                smoothed_integrand[:, j],
+                color=color_singularity_subtraction,
+                label=false,
+                #label="smoothed, " * xyz[j:j]
+            )
+        end
+        plot!(
+            ϕp, 
+            integrand[:, j], 
+            color=color_original,
+            label=false,
+            #label=xyz[j:j]
+        )
+        #plot!(ϕp, smoother_integrand[:, j], label="smoother, " * xyz[j:j], ls=:dot)
+        #plot!(ϕp, smoothest_integrand[:, j], label="smoothest, " * xyz[j:j], ls=:dash)
+    end
+    xlabel!("Location along the coil \$\\tilde{\\phi}\$")
+    ylabel!("\$dB_y/d\\tilde{\\phi}\$  for  \$\\phi=\$$(ϕ0)")
+    title!("Regularized Biot-Savart integrand")
+    xlims!(-π, π)
+    ylims!(-0.9, 0.2)
+    fontsize = 14
+    #annotate!(-1.0, -0.2, text("Original,\neq (15)", color_original, fontsize))
+    #annotate!(1.12, 0.12, text("With singularity subtraction,\neq (23)", color_singularity_subtraction, fontsize))
+    #savefig("/Users/mattland/Box/work23/20230713-01-B_integrand_with_singularity_subtraction_for_talk_both.pdf")
+    savefig("/Users/mattland/Box/work23/20230713-01-B_integrand_with_singularity_subtraction_for_talk_original.pdf")
+end
+
 function plot_force_convergence_single()
     coil_num = 1
 
@@ -3124,7 +3206,6 @@ end
 function plot_inductance_convergence()
     curve = get_curve("hsx", 1)
     regularization = 0.01 ^ 2
-    n = 300
 
     # Generate numbers of quadrature points to try:
     nns = 30
@@ -3344,11 +3425,15 @@ function save_HSX_rectangular_coil_shape()
     # Dimensions in David Anderson's note:
     a = 0.1296
     b = 0.0568
+    filename = "/Users/mattland/Box/work23/20230614-01-hsx_rectangular_coil"
+
+    # Skinnier dimensions for some calculations:
+    a = b = 0.02
+    filename = "/Users/mattland/Box/work23/20230717-02-hsx_rectangular_coil_ab0p02"
 
     coil = CoilRectangularXSection(curve, 1.0, a, b, FrameCentroid(curve))
     regularization = compute_regularization(coil)
     n = 200  # Number of points
-    filename = "/Users/mattland/Box/work23/20230614-01-hsx_rectangular_coil"
     CoilForces.save(coil, filename * ".dat", n)
 
     # Now save a second file with the self-force
@@ -3402,6 +3487,54 @@ function plot_k_and_delta()
     annotate!(12, 4.15, text("k", k_color, 18))
     annotate!(12, 0.98, text("δ", δ_color, 18))
     savefig("/Users/mattland/Box/work23/20230709-rectangular_xsection_plot_of_k_and_delta.pdf")
+end
+
+function plot_k_and_delta_with_limits()
+    ratios = 10 .^ collect((-3):0.1:3)
+    δ = similar(ratios)
+    k = similar(ratios)
+    a = 1
+    for j in eachindex(ratios)
+        b = ratios[j]
+        k[j] = rectangular_xsection_k(a, b)
+        δ[j] = rectangular_xsection_δ(a, b)
+    end
+
+    k_color = :red
+    δ_color = :blue
+    scalefontsizes()
+    scalefontsizes(1.31)
+    plot(
+        ratios, 
+        k,
+        label=false,
+        #label="k",
+        color=k_color,
+        xaxis=:log10,
+        minorgrid=true,
+        size=(500, 450)
+    )
+    plot!(
+        ratios,
+        δ,
+        color=δ_color,
+        label=false,
+        #label="δ",
+    )
+    plot!(
+        ratios,
+        (7.0 / 6) .+ log.(ratios),
+    )
+    plot!(
+        ratios,
+        ratios / exp(3.0)
+    )
+    #ylims!(0, 6)
+    #xlims!(0.01, 100)
+    xlabel!("\$b / a =\$aspect ratio of conductor cross-section")
+    #annotate!(12, 4.15, text("k", k_color, 18))
+    #annotate!(12, 0.98, text("δ", δ_color, 18))
+    #savefig("/Users/mattland/Box/work23/20230709-rectangular_xsection_plot_of_k_and_delta.pdf")
 end
 
 function partition_of_unity_w_scan()

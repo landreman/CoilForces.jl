@@ -73,4 +73,24 @@ end
             @test CoilForces.rectangular_xsection_δ(a, b) ≈ CoilForces.rectangular_xsection_δ(b, a)
         end
     end
+
+    @testset "Check limits a >> b and b >> a" begin
+        ratios = [1.1e6, 2.2e4, 3.5e5]
+        xs = [0.2, 1.0, 7.3]
+        for ratio in ratios
+            for x in xs
+                # a >> b
+                b = x
+                a = b * ratio
+                @test CoilForces.rectangular_xsection_k(a, b) ≈ (7.0 / 6) + log(a / b) rtol=1e-3
+                @test CoilForces.rectangular_xsection_δ(a, b) ≈ a / (b * exp(3)) rtol=1e-3
+
+                # b >> a
+                a = x
+                b = ratio * a
+                @test CoilForces.rectangular_xsection_k(a, b) ≈ (7.0 / 6) + log(b / a) rtol=1e-3
+                @test CoilForces.rectangular_xsection_δ(a, b) ≈ b / (a * exp(3)) rtol=1e-3
+            end
+        end
+    end
 end
