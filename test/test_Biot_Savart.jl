@@ -410,8 +410,8 @@ using HCubature
         reltol = 1e-4
         abstol = 1e-4
         nϕ = 1
-        nρ = 4
-        nθ = 3
+        nρ = 7
+        nθ = 5
 
         curve = CurveCircle(1.0)
         coil = CoilCircularXSection(curve, I, aminor)
@@ -426,14 +426,14 @@ using HCubature
             differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
             B_regularized = B_filament_adaptive(coil, position; regularization=regularization)
             for jρ in 1:nρ
-                #println("  Processing jρ = $(jρ) of $(nρ)")
-                ρ = jρ / nρ
+                println("  Processing jρ = $(jρ) of $(nρ)")
+                ρ = 2 * jρ / nρ  # Test ρ up to 2, so outside coil
                 for jθ = 1:nθ
                     θ = 2π * (jθ - 1) / nθ
 
                     # Evaluate vector B from a high fidelity calculation:
                     eval_point = position + aminor * ρ * cos(θ) * normal + aminor * ρ * sin(θ) * binormal
-                    B_hifi = B_finite_thickness(coil, eval_point; reltol=1e-4, abstol=1e-4)
+                    B_hifi = B_finite_thickness(coil, eval_point; reltol=reltol, abstol=abstol)
 
                     # Now evaluate vector B from the filament model:
                     B_filament = (
@@ -442,7 +442,7 @@ using HCubature
                     )
                     #println("    B_hifi:     $(B_hifi)")
                     #println("    B_filament: $(B_filament)")
-                    @test B_hifi ≈ B_filament atol=1e-12 rtol=3e-4
+                    @test B_hifi ≈ B_filament atol=1e-11 rtol=9e-4
                 end
             end
         end

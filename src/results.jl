@@ -1993,6 +1993,7 @@ function save_high_fidelity_B_vector_for_HSX_coil(;
     nϕ = 4,
     nn = 2,
     nb = 3,
+    margin = 1.0,
 )
     curve = get_curve("hsx", 1)
     #curve = CurveCircle(1.0)
@@ -2004,9 +2005,9 @@ function save_high_fidelity_B_vector_for_HSX_coil(;
         differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
         for jn in 1:nn
             println("  Processing jn = $(jn) of $(nn)")
-            xn = ((jn - 1.0) / (nn - 1) - 0.5) * 2 * aminor
+            xn = ((jn - 1.0) / (nn - 1) - 0.5) * 2 * aminor * margin
             for jb = 1:nb
-                xb = ((jb - 1.0) / (nb - 1) - 0.5) * 2 * aminor
+                xb = ((jb - 1.0) / (nb - 1) - 0.5) * 2 * aminor * margin
                 eval_point = position + xn * normal + xb * binormal
                 θ_shift = atan(xb, xn)
                 #θ_shift = atan(xn, xb)
@@ -2025,8 +2026,8 @@ function save_high_fidelity_B_vector_for_HSX_coil(;
     datestr = replace("$(Dates.now())", ":" => ".")
     filename = "HSX_B_a$(aminor)_rtol$(reltol)_atol$(abstol)_nphi$(nϕ)_nn$(nn)_nb$(nb)_$(datestr).dat"
     open(directory * filename, "w") do file
-        write(file, "aminor, I, reltol, abstol, nϕ, nn, nb\n")
-        write(file, "$(aminor), $(I), $(reltol), $(abstol), $(nϕ), $(nn), $(nb)\n")
+        write(file, "aminor, I, reltol, abstol, nϕ, nn, nb, margin\n")
+        write(file, "$(aminor), $(I), $(reltol), $(abstol), $(nϕ), $(nn), $(nb), $(margin)\n")
         for jϕ in 1:nϕ
             for jn in 1:nn
                 for jb = 1:nb
@@ -2095,6 +2096,125 @@ function save_high_fidelity_B_vector_for_HSX_coil_rectangular_xsection(;
     
 end
 
+function reproduce_Siena_plot_of_modB_for_HSX_coil()
+    directory = "/Users/mattland/Box/work23/20230426-01-HSX_coil_hifi_B_vector/"
+
+    filenames = [
+        "HSX_B_a0.0032695461797682913_rtol0.0001_atol0.0001_nphi1_nn42_nb43_2023-08-28T16.27.33.688.dat",
+        "HSX_B_a0.0003269546179768291_rtol0.0001_atol0.0001_nphi1_nn42_nb43_2023-08-28T17.13.37.357.dat",
+    ]
+    filenames = [
+        "HSX_B_a0.0032695461797682913_rtol0.001_atol0.001_nphi1_nn42_nb43_2023-08-28T16.19.59.101.dat",
+        "HSX_B_a0.0003269546179768291_rtol0.001_atol0.001_nphi1_nn42_nb43_2023-08-28T16.21.40.185.dat"
+    ]
+    filenames = [
+        "HSX_B_a0.0032695461797682913_rtol0.001_atol0.001_nphi1_nn42_nb43_2023-08-28T18.21.17.574.dat",
+        "HSX_B_a0.0003269546179768291_rtol0.001_atol0.001_nphi1_nn42_nb43_2023-08-28T18.22.40.334.dat"
+    ]
+    contour_levels = [
+        collect(0:10:60),
+        collect(0:80:560)
+    ]
+    titles = ["R/a=100", "R/a=1000"]
+
+    n_plots = 2
+    plots = Array{Any, 1}(undef, n_plots)
+    scalefontsizes()
+    scalefontsizes(1.0)
+
+    Plots.gr_cbar_width[] = 0.005
+
+    for jaspect in 1:2
+        file = open(directory * filenames[jaspect], "r")
+
+        # Read and parse header:
+        line = readline(file)
+        line = readline(file)
+        splitline = split(line, ",")
+        aminor = parse(Float64, splitline[1])
+        I = parse(Float64, splitline[2])
+        nϕ = parse(Int, splitline[5])
+        nn = parse(Int, splitline[6])
+        nb = parse(Int, splitline[7])
+        margin = 1.0
+        if length(splitline) > 7
+            margin = parse(Float64, splitline[8])
+        end
+        println("Read nϕ=$(nϕ), nn=$(nn), nb=$(nb)")
+
+        curve = get_curve("hsx", 1)
+        #curve = CurveCircle(1.0)
+        coil = CoilCircularXSection(curve, I, aminor)
+        regularization = aminor * aminor / sqrt(ℯ)
+
+        # Now read the main B data:
+        high_fidelity_B = zeros(nϕ, nn, nb, 3)
+        for jϕ in 1:nϕ
+            for jn in 1:nn
+                for jb = 1:nb
+                    for jxyz in 1:3
+                        high_fidelity_B[jϕ, jn, jb, jxyz] = parse(Float64, readline(file))
+                    end
+                end
+            end
+        end
+        close(file)
+        #@show high_fidelity_B
+
+        hifi_modB = @. sqrt(high_fidelity_B[1, :, :, 1]^2 + high_fidelity_B[1, :, :, 2]^2 + high_fidelity_B[1, :, :, 3]^2)
+
+        xyz = "xyz"
+
+        uplot = [((jn - 1) / (nn - 1) * 2 - 1) * aminor * margin for jn in 1:nn]
+        vplot = [((jb - 1) / (nb - 1) * 2 - 1) * aminor * margin for jb in 1:nb]
+        u2d = [uplot[jn] for jb in 1:nb, jn in 1:nn]
+        v2d = [vplot[jb] for jb in 1:nb, jn in 1:nn]
+        ρ = @. sqrt(u2d^2 + v2d^2) / aminor
+        θ = atan.(v2d, u2d)
+
+        ϕ = 0.0
+        differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
+
+        B_regularized = B_filament_adaptive(coil, position; regularization=regularization)
+        reduced_B = zeros(nb, nn, 3)
+        for jxyz in 1:3
+            leading_order_solution = μ0 * I / (2π * aminor * aminor) * (
+                -normal[jxyz] * v2d + binormal[jxyz] * u2d
+            ) .* max.(1, 1 ./ ρ.^2)
+            for jb in 1:nb
+                for jn in 1:nn
+                    reduced_B[jb, jn, jxyz] = (
+                        B_regularized[jxyz] 
+                        + CoilForces.B_local(coil, curvature, normal[jxyz], binormal[jxyz], ρ[jb, jn], θ[jb, jn])
+                    )
+                end
+            end
+        end
+        reduced_modB = @. sqrt(reduced_B[:, :, 1]^2 + reduced_B[:, :, 2]^2 + reduced_B[:, :, 3]^2)
+            
+        plots[jaspect] = contour(uplot, vplot, hifi_modB',
+            aspect_ratio = :equal,
+            levels=contour_levels[jaspect],
+        )
+
+        contour!(
+            uplot, vplot, reduced_modB,
+            levels=contour_levels[jaspect],
+            linestyle=:dash,
+            linewidth=3
+        )
+
+        title!("|B| for " * titles[jaspect])
+        xlabel!("u [meters]")
+        ylabel!("v [meters]")
+        nθ = 150
+        θplot = collect(range(0, 2π, length=nθ))
+        plot!(aminor * cos.(θplot), aminor * sin.(θplot), linewidth=1.5, color=:black, label=nothing)
+    end
+    plot(plots..., layout=(2, 1), dpi=100, size=(700, 1100))
+    savefig("/Users/mattland/Box/work23/20230828-01-reproducing_Sienas_modB_contours_for_HSX_coil.pdf")
+end
+
 function plot_high_fidelity_B_vector_for_HSX_coil(
     filename="HSX_B_a0.01_rtol1.0e-5_atol1.0e-5_nphi4_nn2_nb3_2023-04-26T13.25.33.056.dat"
 )
@@ -2110,7 +2230,11 @@ function plot_high_fidelity_B_vector_for_HSX_coil(
     nϕ = parse(Int, splitline[5])
     nn = parse(Int, splitline[6])
     nb = parse(Int, splitline[7])
-    println("Read nϕ=$(nϕ), nn=$(nn), nb=$(nb)")
+    margin = 1.0
+    if length(splitline) > 7
+        margin = parse(Float64, splitline[8])
+    end
+    println("Read nϕ=$(nϕ), nn=$(nn), nb=$(nb) margin=$(margin)")
 
     curve = get_curve("hsx", 1)
     #curve = CurveCircle(1.0)
@@ -2141,12 +2265,12 @@ function plot_high_fidelity_B_vector_for_HSX_coil(
     layout = (n_rows, n_cols)
     plots = Array{Any, 1}(undef, n_plots)
     scalefontsizes()
-    scalefontsizes(0.5)
+    scalefontsizes(0.3)
 
     Plots.gr_cbar_width[] = 0.005
 
-    uplot = [((jn - 1) / (nn - 1) * 2 - 1) * aminor for jn in 1:nn]
-    vplot = [((jb - 1) / (nb - 1) * 2 - 1) * aminor for jb in 1:nb]
+    uplot = [((jn - 1) / (nn - 1) * 2 - 1) * aminor * margin for jn in 1:nn]
+    vplot = [((jb - 1) / (nb - 1) * 2 - 1) * aminor * margin for jb in 1:nb]
     u2d = [uplot[jn] for jb in 1:nb, jn in 1:nn]
     v2d = [vplot[jb] for jb in 1:nb, jn in 1:nn]
     ρ = @. sqrt(u2d^2 + v2d^2) / aminor
@@ -2166,7 +2290,7 @@ function plot_high_fidelity_B_vector_for_HSX_coil(
             for jxyz in 1:3
                 leading_order_solution = μ0 * I / (2π * aminor * aminor) * (
                     -normal[jxyz] * v2d + binormal[jxyz] * u2d
-                )
+                ) .* min.(1, 1 ./ (ρ .^ 2))
                 for hifi in [true, false]
                     if hifi
                         data = high_fidelity_B[jϕ, :, :, jxyz]'
@@ -2186,13 +2310,13 @@ function plot_high_fidelity_B_vector_for_HSX_coil(
                     end
 
                     # Don't plot data outside the coil - make those points NaN
-                    for jb in 1:nb
-                        for jn in 1:nn
-                            if uplot[jn]^2 + vplot[jb]^2 > aminor^2
-                                data[jb, jn] = NaN
-                            end
-                        end
-                    end
+                    #for jb in 1:nb
+                    #    for jn in 1:nn
+                    #        if uplot[jn]^2 + vplot[jb]^2 > aminor^2
+                    #            data[jb, jn] = NaN
+                    #        end
+                    #    end
+                    #end
 
                     maxB = maximum(leading_order_solution)
                     minB = minimum(leading_order_solution)
@@ -2219,11 +2343,18 @@ function plot_high_fidelity_B_vector_for_HSX_coil(
                     ylabel!("v [meters]")
                     nθ = 150
                     θplot = collect(range(0, 2π, length=nθ))
-                    plot!(aminor * cos.(θplot), aminor * sin.(θplot), linewidth=1.5, color=:black, label=nothing)
+                    plot!(
+                        aminor * cos.(θplot),
+                        aminor * sin.(θplot),
+                        linewidth=0.5, 
+                        color=:black, 
+                        label=nothing
+                    )
                 end
             end
         end
-        plot(plots..., layout=layout, dpi=100, size=(1100, 850))
+        #plot(plots..., layout=layout, dpi=100, size=(1100, 850))
+        plot(plots..., layout=layout, dpi=100, size=(2200, 1700))
         if subtract_leading_order
             filename_extension = "_without_leading_order"
         else

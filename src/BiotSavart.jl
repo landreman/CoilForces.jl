@@ -339,13 +339,26 @@ Returns eq (124) in
 20230326-01_B_in_conductor_for_a_noncircular_finite_thickness_coil.pdf
 """
 function B_local(coil::CoilCircularXSection, curvature, normal, binormal, ρ, θ)
-    return (
-        μ0 * coil.current * ρ / (2π * coil.aminor) * (-normal * sin(θ) + binormal * cos(θ))
-        + μ0 * coil.current * curvature / (8π) * (
-            -0.5 * ρ^2 * sin(2θ) * normal
-            + (1.5 + ρ^2 * (-1 + 0.5 * cos(2θ))) * binormal
+    if ρ < 1
+        # Inside the conductor:
+        result = (
+            μ0 * coil.current * ρ / (2π * coil.aminor) * (-normal * sin(θ) + binormal * cos(θ))
+            + μ0 * coil.current * curvature / (8π) * (
+                -0.5 * ρ^2 * sin(2θ) * normal
+                + (1.5 + ρ^2 * (-1 + 0.5 * cos(2θ))) * binormal
+            )
         )
-    )
+    else
+        # Slightly outside the conductor:
+        result = (
+            μ0 * coil.current / (2π * coil.aminor * ρ) * (-normal * sin(θ) + binormal * cos(θ))
+            + μ0 * coil.current * curvature / (8π) * (
+                (0.5 / (ρ^2) - 1) * sin(2θ) * normal
+                + (0.5 - 2 * log(ρ) + (-0.5 / (ρ^2) + 1) * cos(2θ)) * binormal
+            )
+        )
+    end
+    return result
 end
 
 function rectangular_xsection_G(p, q)
