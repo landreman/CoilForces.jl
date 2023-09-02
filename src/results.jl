@@ -132,7 +132,7 @@ function plot_force_non_convergence_skipping_point_circular_with_ours()
 end
 
 """
-For a circular filament coil, show that |B| diverges logarithmically
+For a circular filament coil with circular x-section, show that |B| diverges logarithmically
 if the evaluation point is on the coil and you merely skip the singular point.
 """
 function plot_modB_non_convergence_skipping_point_circular_with_ours()
@@ -217,6 +217,107 @@ function plot_modB_non_convergence_skipping_point_circular_with_ours()
     annotate!(60, 15.0, text("Our method", :red))
     annotate!(220, 0.07, text("Filament, skipping singular point", :blue))
     savefig("circular_coil_modB_non_convergence_skipping_point.pdf")
+end
+
+"""
+For a circular filament coil with rectangular x-section, show that |B| diverges logarithmically
+if the evaluation point is on the coil and you merely skip the singular point.
+"""
+function plot_modB_non_convergence_skipping_point_rectangular()
+    # Major radius of coil [meters]
+    R0 = 1.0
+
+    # Minor radius of coil [meters]
+    aminor = 0.01
+
+    # Total current [Amperes]
+    I = 1.0e5
+
+    curve = CurveCircle(R0)
+    coil = CoilRectangularXSection(curve, I, aminor, aminor, FrameCircle())
+
+    #r_eval = [R0 - aminor / 2, 0, aminor / 2]
+    r_eval = [R0 - aminor / 2, 0, 0]
+    @time B_3d_integral = B_finite_thickness(coil, r_eval; reltol=1e-6, abstol=1e-6)
+    modB_3d_integral = norm(B_3d_integral)
+
+    println("B_3d_integral: ", B_3d_integral)
+    println("modB_3d_integral: ", modB_3d_integral)
+
+    ϕ = 0.0
+    differential_arclength, curvature, torsion, position, tangent, normal, binormal = Frenet_frame(curve, ϕ)
+    p, q = get_frame(coil.frame, ϕ, position, tangent, normal)
+    κ1, κ2 = get_κ1_κ2(p, q, normal, curvature)
+    @show p
+    @show q
+
+    # Generate numbers of quadrature points to try:
+    nns = 25
+    ns = [Int(round(10 ^ x)) for x in range(0.5, 4.0, length=nns)]
+
+    modB_skipping_point = zeros(nns)
+    modB_ours = zeros(nns)
+    r_eval = [R0, 0, 0]
+    u = 0.999
+    v = 0.0
+    B_analytic = zeros(3)
+    for jn in 1:nns
+        B = B_filament_fixed(coil, r_eval, ns[jn], drop_first_point=true)
+        modB_skipping_point[jn] = B[3]
+        B_reg = B_singularity_subtraction_fixed(coil, 0, ns[jn])
+        B_regularized_plus_extra_term = B_reg + μ0 * coil.current * curvature / (8π) * (4 + 2 * log(2) + log(CoilForces.rectangular_xsection_δ(aminor, aminor))) * binormal
+        B0_p, B0_q = CoilForces.rectangular_xsection_B0(coil, u, v)
+        B0 = B0_p * p + B0_q * q
+
+        Bκ_p, Bκ_q = CoilForces.rectangular_xsection_Bκ(coil, κ1, κ2, u, v)
+        Bκ_term = Bκ_p * p + Bκ_q * q
+        B_analytic = B_regularized_plus_extra_term + B0 + Bκ_term
+    
+        modB_ours[jn] = norm(B_analytic)
+    end
+    println("B filament:", B_analytic)
+    println("|B| filament:", modB_ours[end])
+    @show modB_skipping_point
+
+    x = [minimum(ns), maximum(ns)]
+
+    color_ours = :darkorange1
+    color_hifi = :royalblue
+    color_naive = :green
+
+    linewidth = 2
+    scatter(
+        ns,
+        modB_skipping_point,
+        xscale=:log10,
+        yscale=:log10,
+        label="Skipping singular point",
+        size=(600, 500),
+        leg=false,
+        c=color_naive,
+        ms=3,
+        msw=0,
+        xtickfont=font(10),
+        ytickfont=font(10),
+        titlefontsize=14,
+        xguidefontsize=12,
+        yguidefontsize=12,
+        titlefonthalign=:left,
+        minorgrid=true,
+        top_margin=4mm,
+    )
+    plot!(x, modB_3d_integral * [1, 1], label="3D integral", c=color_hifi, lw=2)
+    scatter!(ns, modB_ours, ms=3, msw=0, label="Filament, our method", c=color_ours, lw=1)
+    xlabel!("Number of grid points for filament calculations")
+    ylabel!("maximum |B| in the conductor [T]")
+    xticks!(10 .^ (1:4))
+    xlims!(3, 1e4)
+    ylims!((0.01, 10))
+    title!("Merely skipping the singular grid point for a filament         \ngives a non-convergent result with significant error        ")
+    annotate!(0.8e3, 5, text("High-fidelity 3D integral", color_hifi))
+    annotate!(60, 2.5, text("Our 1D method", color_ours))
+    annotate!(220, 0.02, text("Filament, skipping singular point", color_naive))
+    savefig("circular_coil_rectangular_xsection_modB_non_convergence_skipping_point.pdf")
 end
 
 
@@ -1590,7 +1691,7 @@ function plot_force_phi_scan_HSX_rectangular_xsection()
     # For colors, see http://juliagraphics.github.io/Colors.jl/stable/namedcolors/
     colors_filament = [:salmon, :limegreen, :deepskyblue]  # light
     colors_hifi = [:firebrick, :darkgreen, :blue3] # dark
-    colors_filament = [:darkorange]
+    colors_filament = [:darkorange1]
     colors_hifi = [:royalblue]
     for j in 1:n
         filename = filenames[j]
