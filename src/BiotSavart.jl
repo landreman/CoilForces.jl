@@ -1,6 +1,6 @@
-Biot_savart_prefactor = μ0 / (4π)
+const Biot_savart_prefactor = μ0 / (4π)
 
-sqrt_1_over_e = 1 / √ℯ
+const sqrt_1_over_e = 1 / √ℯ
 
 function compute_regularization(coil::CoilCircularXSection)
     return coil.aminor * coil.aminor * sqrt_1_over_e
