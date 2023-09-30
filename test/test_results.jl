@@ -17,4 +17,8 @@ using Test
     @testset "Test reproduce_Sienas_plot_of_locally_circular_approx" begin
         CoilForces.reproduce_Sienas_plot_of_locally_circular_approx()
     end
+
+    @testset "Test reference_HSX_force_for_simsopt_test()" begin
+        CoilForces.reference_HSX_force_for_simsopt_test()
+    end
 end

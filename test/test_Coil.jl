@@ -64,7 +64,6 @@ end
     end
 
     @testset "k and δ for rectangular x-section should be unchanged if we swap a and b" begin
-        n_ratio = 10
         d = 0.01  # Geometric mean of a and b
         for ratio in [0.1, 3.7]
             a = d * ratio

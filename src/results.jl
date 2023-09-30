@@ -352,6 +352,55 @@ function plot_force_for_HSX()
     title!("Force per unit length on HSX coil $(coil_num) [N/m]")
 end
 
+
+"""
+This function is used to test the self-force calculation in simsopt.
+"""
+function reference_HSX_force_for_simsopt_test()
+    coil_num = 1
+    curve = get_curve("hsx", coil_num)
+
+    current = 150e3
+
+    # minor radius of conductor:
+    a = 0.01
+
+    coil = CoilCircularXSection(curve, current, a)
+
+    # Number of grid points on which to report the force:
+    nϕ = 160
+
+    ϕ = (collect(1:nϕ) .- 1) * 2π / nϕ
+    force_per_unit_length = zeros(nϕ, 3)
+    for j in 1:nϕ
+        position, tangent = position_and_tangent(curve, ϕ[j])
+        B = B_singularity_subtraction_fixed(coil, ϕ[j], nϕ)
+        force_per_unit_length[j, :] = current * cross(tangent, B)
+    end
+
+    @show force_per_unit_length[:, 1]
+
+    # Now do the case of rectangular cross-section.
+
+    b = 0.023
+    coil = CoilRectangularXSection(curve, current, a, b, FrameCentroid(curve))
+
+    # Number of grid points on which to report the force:
+    nϕ = 160
+
+    ϕ = (collect(1:nϕ) .- 1) * 2π / nϕ
+    force_per_unit_length = zeros(nϕ, 3)
+    for j in 1:nϕ
+        position, tangent = position_and_tangent(curve, ϕ[j])
+        B = B_singularity_subtraction_fixed(coil, ϕ[j], nϕ)
+        force_per_unit_length[j, :] = current * cross(tangent, B)
+    end
+
+    @show force_per_unit_length[:, 1]
+
+    nothing
+end
+
 function plot_integrand()
     coil_num = 1
     curve = get_curve("hsx", coil_num)
