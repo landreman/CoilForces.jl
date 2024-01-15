@@ -220,6 +220,100 @@ function plot_modB_non_convergence_skipping_point_circular_with_ours()
 end
 
 """
+For a circular filament coil with circular x-section, show that |B| diverges logarithmically
+if the evaluation point is on the coil and you merely skip the singular point.
+"""
+function plot_modB_non_convergence_skipping_point_circular_with_ours_for_talk()
+    # Major radius of coil [meters]
+    R0 = 3.0
+
+    # Minor radius of coil [meters]
+    aminor = 0.01
+
+    # Total current [Amperes]
+    I = 1.0e6
+
+    curve = CurveCircle(R0)
+    coil = CoilCircularXSection(curve, I, aminor)
+    r_eval = [R0, 0, 0]
+
+    modB_analytic = (
+        μ0 * I / (2π * aminor)
+        + μ0 * I / (8π * R0) * (6 * log(2.0) - 0.5 + 2 * log(R0 / aminor))
+    )
+
+    @time modB_3d_integral = hifi_circular_coil_compute_Bz(R0, aminor, I, R0 - aminor, 0; reltol=1e-6, abstol=1e-6)
+
+    println("modB_analytic:    ", modB_analytic)
+    println("modB_3d_integral: ", modB_3d_integral)
+    @show relative_difference = (modB_analytic - modB_3d_integral) / (0.5 * (modB_analytic + modB_3d_integral))
+    
+    # Generate numbers of quadrature points to try:
+    nns = 25
+    ns = [Int(round(10 ^ x)) for x in range(0.5, 4.0, length=nns)]
+
+    modB_skipping_point = zeros(nns)
+    modB_ours = zeros(nns)
+    for jn in 1:nns
+        B = B_filament_fixed(coil, r_eval, ns[jn], drop_first_point=true)
+        modB_skipping_point[jn] = B[3]
+        B_filament = B_singularity_subtraction_fixed(coil, 0, ns[jn])
+        # Take the b = e_z component of eq (123)-(125) in 
+        # 20230326-01_B_in_conductor_for_a_noncircular_finite_thickness_coil.pdf
+        # for θ = 0:
+        modB_ours[jn] = (
+            μ0 * I / (2π * aminor)
+            + μ0 * I / (2π * R0) * (0.75 - 1 + 0.5)
+            + B_filament[3]
+        )
+    end
+    @show modB_skipping_point
+
+    x = [minimum(ns), maximum(ns)]
+
+    scalefontsizes()
+    scalefontsizes(1.4)
+
+    linewidth = 2
+    scatter(
+        ns,
+        modB_skipping_point,
+        xscale=:log10,
+        yscale=:log10,
+        label="Skipping singular point",
+        size=(600, 500),
+        leg=false,
+        c=:blue,
+        ms=3,
+        msw=0,
+        xtickfont=font(15),
+        ytickfont=font(15),
+        titlefontsize=14,
+        xguidefontsize=16,
+        yguidefontsize=16,
+        titlefonthalign=:left,
+        minorgrid=true,
+        right_margin=10pt,
+    )
+    plot!(x, modB_analytic * [1, 1], label="Analytic", c=:darkorange, lw=7)
+    plot!(x, modB_3d_integral * [1, 1], label="3D integral", c=:green, lw=3)
+    scatter!(ns, modB_ours, ms=4, msw=0, label="Filament, our method", c=:red, lw=1)
+    xlabel!("Number of grid points for filament calculations    ")
+    ylabel!("maximum |B| in the conductor [T]")
+    xticks!(10 .^ (1:4))
+    xlims!(3, 1e4)
+    ylims!((0.03, 40))
+    #title!("Merely skipping the singular grid point for a filament
+    #\ngives a non-convergent result with significant error        ")
+    annotation_font_size = 16
+    annotate!(8, 27, text("Analytic", :darkorange, annotation_font_size))
+    annotate!(2.0e3, 27, text("3D integral", :green, annotation_font_size))
+    annotate!(60, 15.0, text("Our method", :red, annotation_font_size))
+    annotate!(320, 0.07, text("Filament, skipping singular point", :blue, annotation_font_size))
+    savefig("circular_coil_modB_non_convergence_skipping_point_for_talk.pdf")
+end
+
+"""
 For a circular filament coil with rectangular x-section, show that |B| diverges logarithmically
 if the evaluation point is on the coil and you merely skip the singular point.
 """

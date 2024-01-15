@@ -46,8 +46,8 @@ using Test
 
             for j in 1:nϕ
                 dℓdϕ, κ, τ, γ0, tangent, normal, binormal = Frenet_frame(c, ϕ[j])
-                @test κ ≈ κ_python[j, jcoil]
-                @test τ ≈ τ_python[j, jcoil]
+                @test κ ≈ κ_python[j, jcoil] rtol=0 atol=1e-12
+                @test τ ≈ τ_python[j, jcoil] rtol=0 atol=1e-12
             end
         end 
     end
